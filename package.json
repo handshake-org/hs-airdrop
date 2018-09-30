@@ -1,0 +1,40 @@
+{
+  "name": "hs-airdrop",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Handshake airdrop redemption",
+  "keywords": [
+    "handshake",
+    "hns"
+  ],
+  "license": "MIT",
+  "repository": "git://github.com/handshake-org/hs-airdrop.git",
+  "homepage": "https://github.com/handshake-org/hs-airdrop",
+  "bugs": {
+    "url": "https://github.com/handshake-org/hs-airdrop/issues"
+  },
+  "author": "Christopher Jeffrey <chjjeffrey@gmail.com>",
+  "main": "./lib/airdrop.js",
+  "bin": {
+    "hs-airdrop": "./bin/hs-airdrop"
+  },
+  "scripts": {
+    "lint": "eslint bin/hs-airdrop lib/ scripts/ || exit 0",
+    "test": "mocha --reporter spec test/*-test.js",
+    "test-file": "mocha --reporter spec"
+  },
+  "dependencies": {
+    "bcrypto": "~2.0.0",
+    "bfile": "~0.1.2",
+    "brq": "~0.1.3",
+    "bsert": "~0.0.4",
+    "bstring": "~0.3.0",
+    "bufio": "~1.0.2"
+  },
+  "devDependencies": {
+    "mocha": "^5.2.0"
+  },
+  "engines": {
+    "node": ">=8.0.0"
+  }
+}

@@ -1,0 +1,515 @@
+#!/usr/bin/env node
+
+'use strict';
+
+const assert = require('bsert');
+const os = require('os');
+const fs = require('bfile');
+const request = require('brq');
+const Path = require('path');
+const bio = require('bufio');
+const pgp = require('bcrypto/lib/pgp');
+const ssh = require('bcrypto/lib/ssh');
+const bech32 = require('bstring/lib/bech32');
+const blake2b = require('bcrypto/lib/blake2b');
+const sha256 = require('bcrypto/lib/sha256');
+const merkle = require('bcrypto/lib/mrkl');
+const fixed = require('../lib/fixed');
+const AirdropKey = require('../lib/key');
+const AirdropProof = require('../lib/proof');
+const readline = require('../lib/readline');
+const pkg = require('../package.json');
+const tree = require('../etc/tree.json');
+const {PGPMessage, SecretKey} = pgp;
+const {SSHPrivateKey} = ssh;
+const {readPassphrase} = readline;
+
+const {
+  PUBLIC_KEY,
+  PRIVATE_KEY
+} = pgp.packetTypes;
+
+/*
+ * Constants
+ */
+
+const BUILD_DIR = Path.resolve(os.homedir(), '.hs-tree-data');
+const NONCE_DIR = Path.resolve(BUILD_DIR, 'nonces');
+const GITHUB_URL = 'https://github.com/handshake-org/hs-tree-data/raw/master';
+
+const {
+  checksum: TREE_CHECKSUM,
+  root: TREE_ROOT,
+  leaves: TREE_LEAVES,
+  keys: TREE_KEYS,
+  checksums: TREE_CHECKSUMS
+} = tree;
+
+// Test address.
+const ADDR = 'ts1q5z7yym8xrh4quqg3kw498ngy7hnd4sruqyxnxd';
+
+/*
+ * Airdrop
+ */
+
+async function readFile(...path) {
+  if (!await fs.exists(BUILD_DIR))
+    await fs.mkdir(BUILD_DIR, 0o755);
+
+  if (!await fs.exists(NONCE_DIR))
+    await fs.mkdir(NONCE_DIR, 0o755);
+
+  const checksum = Buffer.from(path.pop(), 'hex');
+  const file = Path.resolve(BUILD_DIR, ...path);
+
+  if (!await fs.exists(file)) {
+    const url = `${GITHUB_URL}/${path.join('/')}`;
+
+    console.log('Downloading: %s...', url);
+
+    const req = await request({
+      url,
+      limit: 50 << 20
+    });
+
+    const raw = req.buffer();
+
+    if (!sha256.digest(raw).equals(checksum))
+      throw new Error('Invalid checksum.');
+
+    await fs.writeFile(file, raw);
+
+    return raw;
+  }
+
+  const raw = await fs.readFile(file);
+
+  if (!sha256.digest(raw).equals(checksum))
+    throw new Error('Invalid checksum.');
+
+  return raw;
+}
+
+async function readTreeFile() {
+  return readFile('tree.bin', TREE_CHECKSUM);
+}
+
+async function readNonceFile(index) {
+  assert((index & 0xff) === index);
+  return readFile('nonces', `${pad(index)}.bin`, TREE_CHECKSUMS[index]);
+}
+
+async function readLeaves() {
+  const data = await readTreeFile();
+  const br = bio.read(data);
+  const totalLeaves = br.readU32();
+  const leaves = [];
+
+  let totalKeys = 0;
+
+  for (let i = 0; i < totalLeaves; i++) {
+    const count = br.readU8();
+    const hashes = [];
+
+    for (let j = 0; j < count; j++) {
+      const hash = br.readBytes(32);
+      hashes.push(hash);
+      totalKeys += 1;
+    }
+
+    leaves.push(hashes);
+  }
+
+  assert.strictEqual(br.left(), 0);
+  assert.strictEqual(totalKeys, TREE_KEYS);
+  assert.strictEqual(totalLeaves, TREE_LEAVES);
+
+  return leaves;
+}
+
+function flattenLeaves(leaves) {
+  assert(Array.isArray(leaves));
+
+  const out = [];
+
+  for (const hashes of leaves) {
+    const root = merkle.createRoot(blake2b, hashes);
+    out.push(root);
+  }
+
+  return out;
+}
+
+function findLeaf(leaves, target) {
+  assert(Array.isArray(leaves));
+  assert(Buffer.isBuffer(target));
+
+  // Could do a binary search here
+  // in the case that there's a single
+  // node subtree.
+  for (let i = 0; i < leaves.length; i++) {
+    const hashes = leaves[i];
+
+    for (let j = 0; j < hashes.length; j++) {
+      const hash = hashes[j];
+
+      if (hash.equals(target))
+        return [i, j];
+    }
+  }
+
+  return [-1, -1];
+}
+
+async function findNonce(key, priv) {
+  assert(key instanceof AirdropKey);
+  assert((priv instanceof SecretKey)
+      || (priv instanceof SSHPrivateKey));
+
+  const bucket = key.hash()[0];
+  const data = await readNonceFile(bucket);
+  const br = bio.read(data);
+
+  while (br.left()) {
+    const ct = br.readBytes(br.readU16(), true);
+
+    try {
+      return key.decrypt(ct, priv);
+    } catch (e) {
+      continue;
+    }
+  }
+
+  throw new Error(`Could not find nonce in bucket ${bucket}.`);
+}
+
+async function createProof(leaves, key, priv) {
+  assert(Array.isArray(leaves));
+  assert(key instanceof AirdropKey);
+
+  if (!key.isAddress()) {
+    assert(priv);
+
+    console.log('Decrypting nonce...');
+
+    key.nonce = await findNonce(key, priv);
+  }
+
+  console.log('Finding merkle leaf...');
+
+  const [index, subindex] = findLeaf(leaves, key.hash());
+
+  if (index === -1)
+    return null;
+
+  console.log('Creating proof from leaf...');
+
+  const subtree = leaves[index];
+  const subproof = merkle.createBranch(blake2b, subindex, subtree);
+
+  const tree = flattenLeaves(leaves);
+  const proof = merkle.createBranch(blake2b, index, tree);
+
+  const p = new AirdropProof();
+
+  p.index = index;
+  p.proof = proof;
+  p.subindex = subindex;
+  p.subproof = subproof;
+  p.key = key.encode();
+
+  return p;
+}
+
+async function parsePGP(msg, keyID) {
+  assert(msg instanceof PGPMessage);
+  assert(Buffer.isBuffer(keyID));
+
+  let priv = null;
+  let pub = null;
+
+  for (const pkt of msg.packets) {
+    if (pkt.type === PRIVATE_KEY) {
+      const key = pkt.body;
+
+      if (key.key.matches(keyID)) {
+        priv = key;
+        pub = key.key;
+        continue;
+      }
+
+      continue;
+    }
+
+    if (pkt.type === PUBLIC_KEY) {
+      const key = pkt.body;
+
+      if (key.matches(keyID)) {
+        pub = key;
+        continue;
+      }
+
+      continue;
+    }
+  }
+
+  if (!priv && !pub)
+    throw new Error(`Could not find key for ID: ${keyID}.`);
+
+  if (!priv) {
+    return {
+      type: 'pgp',
+      pub: AirdropKey.fromPGP(pub),
+      priv: null
+    };
+  }
+
+  let passphrase = null;
+
+  if (priv.params.encrypted) {
+    console.log(`I found key ${pgp.encodeID(keyID)}, but it's encrypted.`);
+
+    passphrase = await readPassphrase();
+  }
+
+  return {
+    type: 'pgp',
+    pub: AirdropKey.fromPGP(priv.key),
+    priv: priv.secret(passphrase)
+  };
+}
+
+function getType(arg) {
+  assert(typeof arg === 'string');
+
+  const ext = Path.extname(arg);
+
+  switch (ext) {
+    case '.asc':
+    case '.pgp':
+    case '.gpg':
+      return 'pgp';
+    default:
+      return bech32.test(arg) ? 'addr' : 'ssh';
+  }
+}
+
+async function readKey(file, keyID) {
+  assert(typeof file === 'string');
+  assert(keyID == null || Buffer.isBuffer(keyID));
+
+  const data = await fs.readFile(file);
+  const ext = Path.extname(file);
+
+  switch (ext) {
+    case '.asc': {
+      assert(keyID);
+      const str = data.toString('utf8');
+      const msg = PGPMessage.fromString(str);
+      return parsePGP(msg, keyID);
+    }
+
+    case '.pgp':
+    case '.gpg': {
+      assert(keyID);
+      const msg = PGPMessage.decode(data);
+      return parsePGP(msg, keyID);
+    }
+
+    default: {
+      const str = data.toString('utf8');
+      const passphrase = await readPassphrase();
+      const key = SSHPrivateKey.fromString(str, passphrase);
+      return {
+        type: 'ssh',
+        pub: AirdropKey.fromSSH(key),
+        priv: key
+      };
+    }
+  }
+}
+
+function usage() {
+  console.error(`hs-airdrop v${pkg.version}`);
+  console.error('');
+  console.error('This tool will create the proof necessary to');
+  console.error('collect your faucet reward, airdrop reward, or');
+  console.error('sponsor reward on the Handshake blockchain.');
+  console.error('');
+  console.error('Usage: $ hs-airdrop [key-file] [key-id] [address] [fee]');
+  console.error('       $ hs-airdrop [key-file] [address] [fee]');
+  console.error('       $ hs-airdrop [address] [value]');
+  console.error('       $ hs-airdrop [address] [value] --sponsor');
+  console.error('');
+  console.error('  [key-file] can be:');
+  console.error('    - An SSH private key file.');
+  console.error('    - An exported PGP armor keyring (.asc).');
+  console.error('    - An exported PGP raw keyring (.pgp/.gpg).');
+  console.error('');
+  console.error('  [key-id] is only necessary for PGP keys.');
+  console.error('');
+  console.error('  [address] must be a Handshake bech32 address.');
+  console.error('  [value] must be the coin value awarded to you (in HNS).');
+  console.error('  [fee] must be a coin value (in HNS).');
+  console.error('');
+  console.error('  The --sponsor flag is necessary for project sponsors.');
+  console.error('');
+  console.error('  This tool will provide a JSON representation of');
+  console.error('  your airdrop proof as well as a base64 string.');
+  console.error('');
+  console.error('  The base64 string must be passed to:');
+  console.error('    $ hsd-rpc sendrawclaim "base64-string"');
+  console.error('');
+  console.error('Examples:');
+  console.error(`  $ hs-airdrop ~/.gnupg/secring.gpg 0x12345678 ${ADDR} 0.5`);
+  console.error(`  $ hs-airdrop ~/.ssh/id_rsa ${ADDR} 0.5`);
+  console.error(`  $ hs-airdrop ${ADDR} 5000`);
+  console.error(`  $ hs-airdrop ${ADDR} 1000000 --sponsor`);
+  console.error('');
+}
+
+async function main(argv) {
+  assert(Array.isArray(argv));
+
+  if (argv.length < 2) {
+    usage();
+    return;
+  }
+
+  const type = getType(argv[0]);
+
+  let key = null;
+  let addr = null;
+  let fee = 0;
+
+  switch (type) {
+    case 'pgp': {
+      if (argv.length < 4) {
+        usage();
+        return;
+      }
+
+      const [file, id, b32, amt] = argv;
+      const keyID = pgp.decodeID(id);
+
+      key = await readKey(file, keyID);
+      addr = b32;
+      fee = fixed.decode(amt, 6);
+
+      break;
+    }
+
+    case 'ssh': {
+      if (argv.length < 3) {
+        usage();
+        return;
+      }
+
+      const [file, b32, amt] = argv;
+
+      key = await readKey(file);
+      addr = b32;
+      fee = fixed.decode(amt, 6);
+
+      break;
+    }
+
+    case 'addr': {
+      if (argv.length < 2) {
+        usage();
+        return;
+      }
+
+      const [b32, amount] = argv;
+      const value = fixed.decode(amount, 6);
+      const sponsor = argv.indexOf('--sponsor') !== -1;
+
+      key = {
+        type: 'addr',
+        pub: AirdropKey.fromAddress(b32, value, sponsor),
+        priv: null
+      };
+
+      addr = b32;
+      fee = sponsor ? 500e6 : 100e6;
+
+      break;
+    }
+
+    default: {
+      throw new assert.AssertionError('Invalid key type.');
+    }
+  }
+
+  if (!key) {
+    usage();
+    return;
+  }
+
+  const address = bech32.decode(addr);
+
+  if (address.hrp !== 'hs'
+      && address.hrp !== 'ts'
+      && address.hrp !== 'rs') {
+    throw new Error('Invalid address HRP.');
+  }
+
+  if (address.version !== 0)
+    throw new Error('Invalid address version.');
+
+  if (address.hash.length !== 20
+      && address.hash.length !== 32) {
+    throw new Error('Invalid address.');
+  }
+
+  console.log('Attempting to create proof.');
+  console.log('This may take a bit...');
+
+  const leaves = await readLeaves();
+  const proof = await createProof(leaves, key.pub, key.priv);
+  proof.version = address.version;
+  proof.address = address.hash;
+  proof.fee = fee;
+
+  if (fee > proof.getValue())
+    throw new Error('Fee exceeds value!');
+
+  if (key.priv)
+    proof.sign(key.pub, key.priv);
+
+  const root = Buffer.from(TREE_ROOT, 'hex');
+
+  if (!proof.verify(root))
+    throw new Error('Proof failed verification.');
+
+  console.log('');
+  console.log('JSON:');
+  console.log(JSON.stringify(proof.toJSON(), null, 2));
+  console.log('');
+  console.log('Base64 (pass this to $ hsd-rpc sendrawclaim):');
+  console.log(proof.toBase64());
+}
+
+/*
+ * Helpers
+ */
+
+function pad(index) {
+  assert((index & 0xff) === index);
+
+  let str = index.toString(10);
+
+  while (str.length < 3)
+    str = '0' + str;
+
+  return str;
+}
+
+/*
+ * Execute
+ */
+
+main(process.argv.slice(2)).catch((err) => {
+  console.error(err.stack);
+  process.exit(1);
+});
