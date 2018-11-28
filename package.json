@@ -24,11 +24,11 @@
     "test-file": "mocha --reporter spec"
   },
   "dependencies": {
-    "bcrypto": "~2.0.0",
+    "bcrypto": "~3.0.0",
     "bfile": "~0.1.2",
     "brq": "~0.1.3",
     "bsert": "~0.0.4",
-    "bstring": "~0.3.0",
+    "bstring": "~0.3.3",
     "bufio": "~1.0.2"
   },
   "devDependencies": {
