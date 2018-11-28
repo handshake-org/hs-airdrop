@@ -183,16 +183,22 @@ async function findNonce(key, priv) {
   throw new Error(`Could not find nonce in bucket ${bucket}.`);
 }
 
-async function createProof(leaves, key, priv) {
+async function createProof(leaves, key, priv, privacy = false) {
   assert(Array.isArray(leaves));
   assert(key instanceof AirdropKey);
+  assert(typeof privacy === 'boolean');
 
   if (!key.isAddress()) {
     assert(priv);
 
     console.log('Decrypting nonce...');
 
-    key.nonce = await findNonce(key, priv);
+    const nonce = await findNonce(key, priv);
+
+    if (privacy)
+      key.applyTweak(nonce);
+    else
+      key.applyNonce(nonce);
   }
 
   console.log('Finding merkle leaf...');
@@ -336,10 +342,10 @@ function usage() {
   console.error('collect your faucet reward, airdrop reward, or');
   console.error('sponsor reward on the Handshake blockchain.');
   console.error('');
-  console.error('Usage: $ hs-airdrop [key-file] [key-id] [address] [fee]');
-  console.error('       $ hs-airdrop [key-file] [address] [fee]');
-  console.error('       $ hs-airdrop [address] [value]');
-  console.error('       $ hs-airdrop [address] [value] --sponsor');
+  console.error('Usage: $ hs-airdrop [key-file] [key-id] [addr] [fee] --privacy');
+  console.error('       $ hs-airdrop [key-file] [addr] [fee] --privacy');
+  console.error('       $ hs-airdrop [addr] [value]');
+  console.error('       $ hs-airdrop [addr] [value] --sponsor');
   console.error('');
   console.error('  [key-file] can be:');
   console.error('    - An SSH private key file.');
@@ -348,9 +354,14 @@ function usage() {
   console.error('');
   console.error('  [key-id] is only necessary for PGP keys.');
   console.error('');
-  console.error('  [address] must be a Handshake bech32 address.');
+  console.error('  [addr] must be a Handshake bech32 address.');
   console.error('  [value] must be the coin value awarded to you (in HNS).');
   console.error('  [fee] must be a coin value (in HNS).');
+  console.error('');
+  console.error('  The --privacy flag is required to use a group of unknown');
+  console.error('  order signature. This feature is RSA only and is');
+  console.error('  recommended for privacy-conscious users (note that');
+  console.error('  this entails a higher fee!).');
   console.error('');
   console.error('  The --sponsor flag is necessary for project sponsors.');
   console.error('');
@@ -363,13 +374,31 @@ function usage() {
   console.error('Examples:');
   console.error(`  $ hs-airdrop ~/.gnupg/secring.gpg 0x12345678 ${ADDR} 0.5`);
   console.error(`  $ hs-airdrop ~/.ssh/id_rsa ${ADDR} 0.5`);
+  console.error(`  $ hs-airdrop ~/.ssh/id_rsa ${ADDR} 0.5 --privacy`);
   console.error(`  $ hs-airdrop ${ADDR} 5000`);
   console.error(`  $ hs-airdrop ${ADDR} 1000000 --sponsor`);
   console.error('');
 }
 
+function spliceArg(argv, name) {
+  assert(Array.isArray(argv));
+  assert(typeof name === 'string');
+
+  const i = argv.indexOf(name);
+
+  if (i === -1)
+    return false;
+
+  argv.splice(i, 1);
+
+  return true;
+}
+
 async function main(argv) {
   assert(Array.isArray(argv));
+
+  const sponsor = spliceArg(argv, '--sponsor');
+  const privacy = spliceArg(argv, '--privacy');
 
   if (argv.length < 2) {
     usage();
@@ -422,7 +451,6 @@ async function main(argv) {
 
       const [b32, amount] = argv;
       const value = fixed.decode(amount, 6);
-      const sponsor = argv.indexOf('--sponsor') !== -1;
 
       key = {
         type: 'addr',
@@ -446,6 +474,9 @@ async function main(argv) {
     return;
   }
 
+  if (sponsor && !key.pub.isAddress())
+    throw new Error('Must have an address to be a sponsor.');
+
   const address = bech32.decode(addr);
 
   if (address.hrp !== 'hs'
@@ -466,7 +497,7 @@ async function main(argv) {
   console.log('This may take a bit...');
 
   const leaves = await readLeaves();
-  const proof = await createProof(leaves, key.pub, key.priv);
+  const proof = await createProof(leaves, key.pub, key.priv, privacy);
   proof.version = address.version;
   proof.address = address.hash;
   proof.fee = fee;

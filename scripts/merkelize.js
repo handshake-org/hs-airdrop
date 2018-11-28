@@ -103,13 +103,15 @@ class Hasher {
     assert(key instanceof AirdropKey);
 
     const bucket = key.hash()[0];
-    const nonce = random.randomBytes(32);
+    const [nonce, newKey] = key.generate();
 
-    key.nonce = nonce;
+    key.applyNonce(nonce);
 
     const ct = key.encrypt(nonce);
 
     this.buckets[bucket].push(ct);
+
+    return newKey;
   }
 
   async hash() {
@@ -245,9 +247,12 @@ class Hasher {
         continue;
       }
 
-      this.pushNonce(key);
+      const newKey = this.pushNonce(key);
 
       hashes.push(key.hash());
+
+      if (newKey)
+        hashes.push(newKey.hash());
     }
 
     return invalid;
@@ -321,9 +326,12 @@ class Hasher {
         continue;
       }
 
-      this.pushNonce(key);
+      const newKey = this.pushNonce(key);
 
       hashes.push(key.hash());
+
+      if (newKey)
+        hashes.push(newKey.hash());
     }
 
     return invalid;
@@ -383,9 +391,16 @@ class Hasher {
 
       valid += 1;
 
-      this.pushNonce(key);
+      const hashes = [];
 
-      this.leaves.push([key.hash()]);
+      const newKey = this.pushNonce(key);
+
+      hashes.push(key.hash());
+
+      if (newKey)
+        hashes.push(newKey.hash());
+
+      this.leaves.push(hashes);
       this.participants += 1;
     }
 

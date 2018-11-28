@@ -29,23 +29,21 @@ proof creation.
 
 ## Privacy
 
-To preserve privacy for the time being, a 32 byte nonce has been [encrypted
-to][nonces] your PGP or SSH key. No one will be able to identify your key
-fingerprint in the tree published above until _you_ decide to reveal it
-on-chain by decrypting the nonce, creating the proof, and publishing it.
+An airdrop to Github and PGP users presents an obvious privacy concern: Github
+and PGP keys are generally tied to a person's real identity. While impractical,
+a determined analyst could link an on-chain airdrop redemption to a
+person's identity.
 
-### Just testing (more privacy coming)
+To solve the privacy issue in a non-interactive way, a 32 byte scalar has been
+[encrypted to][nonces] your public key (you will have to grind a file full of
+encrypted blobs to find it). For EC keys, this scalar is meant to be _added_ to
+your existing key pair (a la HD derivation). For RSA keys, a much more
+[complicated setup][goosig] is necessary. In either case, once your _new_ key
+is derived using this scalar, you will be able to find its corresponding leaf
+in the merkle tree published above.
 
-Note that this construction is testnet-only. The mainnet construction will
-__not__ reveal your existing key to anyone for full privacy on-chain as well.
-It's planned to accomplish this by way of HD derivation for EC keys and a much
-more complicated setup for RSA keys (which lack any form of HD derivation).
-
-If you want complete privacy, do __not__ reveal your key on testnet! While
-impractical, a determined analyst can reserialize your key back into PGP or SSH
-format and identify you through your key's fingerprint. They will not be able
-to identify you on mainnet, but they _will_ know for certain that you are
-present in the tree.
+Publishing a signed airdrop proof using this method _does not_ leak any
+information about your actual identity.
 
 The full list of keys will be destroyed upon mainnet launch. Plaintext nonces
 are not saved at all during the generation phase. The ephemeral keys used for
@@ -53,11 +51,20 @@ the ECIES key exchanges are also not saved.
 
 ## Security
 
-If you're unconfortable having third party software access your PGP and SSH
+If you're uncomfortable having third party software access your PGP and SSH
 keys, you are always able to generate this proof on an air-gapped machine. QR
 code generation will be added to this tool for convenience (eventually).
 
 Signed tarballs of this software will be released upon mainnet launch.
+
+## Fallback for HSMs
+
+Not everyone keeps their SSH and PGP keys on their laptop. In the event that
+your key is not accessible by the signing tool, the signing tool can present
+you with the raw data needed to be signed. Your regular key is _also_ included
+in the merkle tree (concatenated with a random nonce, seeded by the encrypted
+scalar to preserve privacy). Unfortunately, this will forgo the privacy
+preservation mechanism described above.
 
 ## Accepted Key Algorithms
 
@@ -69,19 +76,10 @@ algorithms used on github:
 - __Ed25519__
 - __P256__ (NIST curve)
 
-Note that while DSA is a popular choice of key in the strongset, we found
-30,000 of them to be potentially vulnerable to the [Logjam][logjam] attack, and
-as such, must be considered compromised. For this reason, DSA will not be
-supported at all.
-
 ## Faucet Migration
 
 If you submitted an address to the Handshake faucet, it will be included in the
 mainnet merkle tree.
-
-## Disclaimer (WIP)
-
-All a work-in-progress. Many things are subject to change.
 
 ## Usage
 
@@ -129,4 +127,4 @@ See LICENSE for more info.
 
 [tree]: https://github.com/handshake-org/hs-tree-data
 [nonces]: https://github.com/handshake-org/hs-tree-data/tree/master/nonces
-[logjam]: https://en.wikipedia.org/wiki/Logjam_(computer_security)
+[goosig]: https://github.com/handshake-org/goosig
