@@ -1,6 +1,5 @@
 {
   "name": "hs-airdrop",
-  "private": true,
   "version": "0.0.0",
   "description": "Handshake airdrop redemption",
   "keywords": [
