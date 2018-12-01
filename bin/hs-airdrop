@@ -76,7 +76,8 @@ async function readFile(...path) {
 
     const req = await request({
       url,
-      limit: 50 << 20
+      limit: 50 << 20,
+      timeout: 600 * 1000
     });
 
     const raw = req.buffer();
