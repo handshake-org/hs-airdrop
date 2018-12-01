@@ -20,6 +20,7 @@ const AirdropProof = require('../lib/proof');
 const readline = require('../lib/readline');
 const pkg = require('../package.json');
 const tree = require('../etc/tree.json');
+const faucet = require('../etc/faucet.json');
 const {PGPMessage, SecretKey} = pgp;
 const {SSHPrivateKey} = ssh;
 const {readPassphrase} = readline;
@@ -33,17 +34,22 @@ const {
  * Constants
  */
 
-const BUILD_DIR = Path.resolve(os.homedir(), '.hs-tree-data');
+const BUILD_DIR = process.env.BUILD_DIR
+               || Path.resolve(os.homedir(), '.hs-tree-data');
 const NONCE_DIR = Path.resolve(BUILD_DIR, 'nonces');
 const GITHUB_URL = 'https://github.com/handshake-org/hs-tree-data/raw/master';
 
 const {
   checksum: TREE_CHECKSUM,
-  root: TREE_ROOT,
   leaves: TREE_LEAVES,
   keys: TREE_KEYS,
   checksums: TREE_CHECKSUMS
 } = tree;
+
+const {
+  checksum: FAUCET_CHECKSUM,
+  leaves: FAUCET_LEAVES
+} = faucet;
 
 // Test address.
 const ADDR = 'ts1q5z7yym8xrh4quqg3kw498ngy7hnd4sruqyxnxd';
@@ -61,6 +67,7 @@ async function readFile(...path) {
 
   const checksum = Buffer.from(path.pop(), 'hex');
   const file = Path.resolve(BUILD_DIR, ...path);
+  const base = Path.basename(file);
 
   if (!await fs.exists(file)) {
     const url = `${GITHUB_URL}/${path.join('/')}`;
@@ -75,7 +82,7 @@ async function readFile(...path) {
     const raw = req.buffer();
 
     if (!sha256.digest(raw).equals(checksum))
-      throw new Error('Invalid checksum.');
+      throw new Error(`Invalid checksum: ${base}`);
 
     await fs.writeFile(file, raw);
 
@@ -85,13 +92,17 @@ async function readFile(...path) {
   const raw = await fs.readFile(file);
 
   if (!sha256.digest(raw).equals(checksum))
-    throw new Error('Invalid checksum.');
+    throw new Error(`Invalid checksum: ${base}`);
 
   return raw;
 }
 
 async function readTreeFile() {
   return readFile('tree.bin', TREE_CHECKSUM);
+}
+
+async function readFaucetFile() {
+  return readFile('faucet.bin', FAUCET_CHECKSUM);
 }
 
 async function readNonceFile(index) {
@@ -144,9 +155,6 @@ function findLeaf(leaves, target) {
   assert(Array.isArray(leaves));
   assert(Buffer.isBuffer(target));
 
-  // Could do a binary search here
-  // in the case that there's a single
-  // node subtree.
   for (let i = 0; i < leaves.length; i++) {
     const hashes = leaves[i];
 
@@ -161,12 +169,44 @@ function findLeaf(leaves, target) {
   return [-1, -1];
 }
 
+async function readFaucetLeaves() {
+  const data = await readFaucetFile();
+  const br = bio.read(data);
+  const totalLeaves = br.readU32();
+  const leaves = [];
+
+  for (let i = 0; i < totalLeaves; i++) {
+    const hash = br.readBytes(32);
+    leaves.push(hash);
+  }
+
+  assert.strictEqual(br.left(), 0);
+  assert.strictEqual(totalLeaves, FAUCET_LEAVES);
+
+  return leaves;
+}
+
+function findFaucetLeaf(leaves, target) {
+  assert(Array.isArray(leaves));
+  assert(Buffer.isBuffer(target));
+
+  // Could do a binary search here.
+  for (let i = 0; i < leaves.length; i++) {
+    const leaf = leaves[i];
+
+    if (leaf.equals(target))
+      return i;
+  }
+
+  return -1;
+}
+
 async function findNonce(key, priv) {
   assert(key instanceof AirdropKey);
   assert((priv instanceof SecretKey)
       || (priv instanceof SSHPrivateKey));
 
-  const bucket = key.hash()[0];
+  const bucket = key.bucket();
   const data = await readNonceFile(bucket);
   const br = bio.read(data);
 
@@ -183,30 +223,48 @@ async function findNonce(key, priv) {
   throw new Error(`Could not find nonce in bucket ${bucket}.`);
 }
 
-async function createProof(leaves, key, priv, privacy = false) {
-  assert(Array.isArray(leaves));
+async function createProof(key, priv, bare = false) {
   assert(key instanceof AirdropKey);
-  assert(typeof privacy === 'boolean');
+  assert(typeof bare === 'boolean');
 
-  if (!key.isAddress()) {
-    assert(priv);
+  if (key.isAddress()) {
+    const leaves = await readFaucetLeaves();
+    const index = findFaucetLeaf(leaves, key.hash());
 
-    console.log('Decrypting nonce...');
+    if (index === -1)
+      throw new Error('Could not find leaf.');
 
-    const nonce = await findNonce(key, priv);
+    console.log('Creating proof from leaf...');
 
-    if (privacy)
-      key.applyTweak(nonce);
-    else
-      key.applyNonce(nonce);
+    const proof = merkle.createBranch(blake2b, index, leaves);
+    const p = new AirdropProof();
+
+    p.index = index;
+    p.proof = proof;
+    p.key = key.encode();
+
+    return p;
   }
+
+  const leaves = await readLeaves();
+
+  assert(priv);
+
+  console.log('Decrypting nonce...');
+
+  const nonce = await findNonce(key, priv);
+
+  if (bare)
+    key.applyNonce(nonce);
+  else
+    key.applyTweak(nonce);
 
   console.log('Finding merkle leaf...');
 
   const [index, subindex] = findLeaf(leaves, key.hash());
 
   if (index === -1)
-    return null;
+    throw new Error('Could not find leaf.');
 
   console.log('Creating proof from leaf...');
 
@@ -342,8 +400,8 @@ function usage() {
   console.error('collect your faucet reward, airdrop reward, or');
   console.error('sponsor reward on the Handshake blockchain.');
   console.error('');
-  console.error('Usage: $ hs-airdrop [key-file] [key-id] [addr] [fee] --privacy');
-  console.error('       $ hs-airdrop [key-file] [addr] [fee] --privacy');
+  console.error('Usage: $ hs-airdrop [key-file] [id] [addr] [fee] --bare');
+  console.error('       $ hs-airdrop [key-file] [addr] [fee] --bare');
   console.error('       $ hs-airdrop [addr] [value]');
   console.error('       $ hs-airdrop [addr] [value] --sponsor');
   console.error('');
@@ -352,18 +410,17 @@ function usage() {
   console.error('    - An exported PGP armor keyring (.asc).');
   console.error('    - An exported PGP raw keyring (.pgp/.gpg).');
   console.error('');
-  console.error('  [key-id] is only necessary for PGP keys.');
+  console.error('  [id] is only necessary for PGP keys.');
   console.error('');
   console.error('  [addr] must be a Handshake bech32 address.');
   console.error('  [value] must be the coin value awarded to you (in HNS).');
   console.error('  [fee] must be a coin value (in HNS).');
   console.error('');
-  console.error('  The --privacy flag is required to use a group of unknown');
-  console.error('  order signature. This feature is RSA only and is');
-  console.error('  recommended for privacy-conscious users (note that');
-  console.error('  this entails a higher fee!).');
-  console.error('');
   console.error('  The --sponsor flag is necessary for project sponsors.');
+  console.error('');
+  console.error('  The --bare flag will use your existing public key.');
+  console.error('  This is not recommended as it makes you identifiable');
+  console.error('  on-chain.');
   console.error('');
   console.error('  This tool will provide a JSON representation of');
   console.error('  your airdrop proof as well as a base64 string.');
@@ -374,7 +431,7 @@ function usage() {
   console.error('Examples:');
   console.error(`  $ hs-airdrop ~/.gnupg/secring.gpg 0x12345678 ${ADDR} 0.5`);
   console.error(`  $ hs-airdrop ~/.ssh/id_rsa ${ADDR} 0.5`);
-  console.error(`  $ hs-airdrop ~/.ssh/id_rsa ${ADDR} 0.5 --privacy`);
+  console.error(`  $ hs-airdrop ~/.ssh/id_rsa ${ADDR} 0.5 --bare`);
   console.error(`  $ hs-airdrop ${ADDR} 5000`);
   console.error(`  $ hs-airdrop ${ADDR} 1000000 --sponsor`);
   console.error('');
@@ -398,7 +455,7 @@ async function main(argv) {
   assert(Array.isArray(argv));
 
   const sponsor = spliceArg(argv, '--sponsor');
-  const privacy = spliceArg(argv, '--privacy');
+  const bare = spliceArg(argv, '--bare');
 
   if (argv.length < 2) {
     usage();
@@ -496,8 +553,8 @@ async function main(argv) {
   console.log('Attempting to create proof.');
   console.log('This may take a bit...');
 
-  const leaves = await readLeaves();
-  const proof = await createProof(leaves, key.pub, key.priv, privacy);
+  const proof = await createProof(key.pub, key.priv, bare);
+
   proof.version = address.version;
   proof.address = address.hash;
   proof.fee = fee;
@@ -508,9 +565,7 @@ async function main(argv) {
   if (key.priv)
     proof.sign(key.pub, key.priv);
 
-  const root = Buffer.from(TREE_ROOT, 'hex');
-
-  if (!proof.verify(root))
+  if (!proof.verify())
     throw new Error('Proof failed verification.');
 
   console.log('');

@@ -13,7 +13,6 @@ const pem = require('bcrypto/lib/encoding/pem');
 const blake2b = require('bcrypto/lib/blake2b');
 const sha256 = require('bcrypto/lib/sha256');
 const merkle = require('bcrypto/lib/mrkl');
-const random = require('bcrypto/lib/random');
 const AirdropKey = require('../lib/key');
 const {PGPMessage, PGPPublicKey} = pgp;
 const {SSHPublicKey} = ssh;
@@ -22,6 +21,9 @@ const {SSHPublicKey} = ssh;
  * Constants
  */
 
+assert(process.argv.length > 2);
+
+const PREFIX = process.argv[2];
 const TREE_FILE = Path.resolve(__dirname, '..', 'build', 'tree.bin');
 const TREE_JSON = Path.resolve(__dirname, '..', 'etc', 'tree.json');
 const NONCE_DIR = Path.resolve(__dirname, '..', 'build', 'nonces');
@@ -44,33 +46,27 @@ async function main() {
 
   const root = hasher.hashTree();
   const maxAirdrop = MAX_AIRDROP - hasher.faucet;
-  const reward = Math.floor(maxAirdrop / hasher.participants);
+  const reward = Math.floor(maxAirdrop / leaves.length);
 
   console.log('Checksum: %s', checksum.toString('hex'));
   console.log('Tree Root: %s', root.toString('hex'));
-  console.log('Leaves: %d', hasher.leaves.length);
+  console.log('Leaves: %d', leaves.length);
   console.log('Keys: %d', total);
-  console.log('Max Keys: %d', hasher.maxKeys);
-  console.log('Depth: %d', getDepth(hasher.leaves.length));
-  console.log('Subdepth: %d', getDepth(hasher.maxKeys));
+  console.log('Max Keys: %d', hasher.subleaves);
+  console.log('Depth: %d', getDepth(leaves.length));
+  console.log('Subdepth: %d', getDepth(hasher.subleaves));
   console.log('Reward: %d', reward);
-  console.log('Participants: %d', hasher.participants);
-  console.log('Faucet Total: %d', hasher.faucet);
-  console.log('Sponsors: %d', hasher.sponsors);
-  console.log('Creators: %d', hasher.creators);
-  console.log('External Total: %d', hasher.external);
 
-  assert(((hasher.participants * reward) + hasher.faucet) <= MAX_AIRDROP);
-  assert(hasher.external === 204000000e6);
+  assert(((leaves.length * reward) + hasher.faucet) <= MAX_AIRDROP);
 
   const json = JSON.stringify({
     checksum: checksum.toString('hex'),
     root: root.toString('hex'),
     leaves: leaves.length,
     keys: total,
-    maxKeys: hasher.maxKeys,
+    subleaves: hasher.subleaves,
     depth: getDepth(leaves.length),
-    subdepth: getDepth(hasher.maxKeys),
+    subdepth: getDepth(hasher.subleaves),
     reward,
     checksums: hasher.checksums.map(h => h.toString('hex'))
   }, null, 2);
@@ -88,12 +84,8 @@ class Hasher {
     this.buckets = [];
     this.checksums = [];
     this.existing = new Set();
-    this.maxKeys = 1;
-    this.participants = 0;
+    this.subleaves = 1;
     this.faucet = 0;
-    this.sponsors = 0;
-    this.creators = 0;
-    this.external = 0;
 
     for (let i = 0; i < 256; i++)
       this.buckets.push([]);
@@ -102,7 +94,7 @@ class Hasher {
   pushNonce(key) {
     assert(key instanceof AirdropKey);
 
-    const bucket = key.hash()[0];
+    const bucket = key.bucket();
     const [nonce, newKey] = key.generate();
 
     key.applyNonce(nonce);
@@ -118,16 +110,13 @@ class Hasher {
     await this.readExisting();
     await this.hashGithub();
     await this.hashStrongset();
-    await this.hashFaucet();
-    await this.hashSponsors();
-    await this.hashCreators();
     await this.writeNonces();
 
     return this.writeTree();
   }
 
   async readExisting() {
-    const faucet = await readJSON('..', 'data', 'faucet.json');
+    const faucet = await readJSON(PREFIX, 'faucet.json');
 
     // Format:
     // {
@@ -136,18 +125,20 @@ class Hasher {
     //   address: String,
     //   value: Number
     // }
-    for (const {github, pgp} of faucet) {
+    for (const {github, pgp, value} of faucet) {
       if (github)
         this.existing.add(github.toLowerCase());
 
       if (pgp)
         this.existing.add(pgp.toLowerCase());
+
+      this.faucet += value;
     }
   }
 
   async hashGithub() {
-    const sshKeys = await readJSON('..', 'data', 'github-ssh.json');
-    const pgpKeys = await readJSON('..', 'data', 'github-pgp.json');
+    const sshKeys = await readJSON(PREFIX, 'github-ssh.json');
+    const pgpKeys = await readJSON(PREFIX, 'github-pgp.json');
 
     assert(Array.isArray(sshKeys));
     assert(Array.isArray(pgpKeys));
@@ -201,14 +192,13 @@ class Hasher {
       assert(hashes.length > 0);
       assert(hashes.length <= 255);
 
-      if (hashes.length > this.maxKeys)
-        this.maxKeys = hashes.length;
+      if (hashes.length > this.subleaves)
+        this.subleaves = hashes.length;
 
       validKeys += hashes.length;
       validUsers += 1;
 
       this.leaves.push(hashes.sort(compare));
-      this.participants += 1;
     }
 
     console.log('Valid github users: %d', validUsers);
@@ -338,7 +328,7 @@ class Hasher {
   }
 
   async hashStrongset() {
-    const str = await readText('..', 'data', 'strongset.asc');
+    const str = await readText(PREFIX, 'strongset.asc');
 
     let valid = 0;
     let invalid = 0;
@@ -401,52 +391,10 @@ class Hasher {
         hashes.push(newKey.hash());
 
       this.leaves.push(hashes);
-      this.participants += 1;
     }
 
     console.log('Valid strongset members: %d', valid);
     console.log('Invalid strongset members: %d', invalid);
-  }
-
-  async hashFaucet() {
-    const faucet = await readJSON('..', 'data', 'faucet.json');
-
-    for (const {address, value} of faucet) {
-      const key = AirdropKey.fromAddress(address, value, false);
-
-      this.leaves.push([key.hash()]);
-      this.faucet += value;
-    }
-
-    console.log('Valid faucet addresses: %d', faucet.length);
-  }
-
-  async hashSponsors() {
-    const sponsors = await readJSON('..', 'data', 'sponsors.json');
-
-    for (const {address, value} of sponsors) {
-      const key = AirdropKey.fromAddress(address, value, true);
-
-      this.leaves.push([key.hash()]);
-      this.sponsors += 1;
-      this.external += value;
-    }
-
-    console.log('Valid sponsor addresses: %d', sponsors.length);
-  }
-
-  async hashCreators() {
-    const creators = await readJSON('..', 'data', 'creators.json');
-
-    for (const {address, value} of creators) {
-      const key = AirdropKey.fromAddress(address, value, false);
-
-      this.leaves.push([key.hash()]);
-      this.creators += 1;
-      this.external += value;
-    }
-
-    console.log('Valid creator addresses: %d', creators.length);
   }
 
   async writeNonces() {
@@ -539,7 +487,7 @@ function compare(a, b) {
 }
 
 async function readText(...args) {
-  const file = Path.resolve(__dirname, ...args);
+  const file = Path.resolve(...args);
   return fs.readFile(file, 'utf8');
 }
 

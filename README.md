@@ -19,6 +19,12 @@ This merkle tree is computed and its root is added to consensus rules of the
 Handshake blockchain, allowing the owner of a key to publish a signed merkle
 proof on-chain in order to redeem their airdrop.
 
+With the key list as it currently stands, every open source developer will
+receive __4,662.598321__ HNS coins from the airdrop (subject to change before
+mainnet).
+
+---
+
 There are a few gotchas: we do not allow standard PGP signatures on the
 consensus layer. This is done for simplicity and safety. This means that a
 regular call to `$ gpg --sign` will not work for handshake airdrop proofs. As
@@ -91,29 +97,40 @@ This tool will create the proof necessary to
 collect your faucet reward, airdrop reward, or
 sponsor reward on the Handshake blockchain.
 
-Usage: $ hs-airdrop [key-file] [key-id] [address] [fee]
-       $ hs-airdrop [key-file] [address] [fee]
-       $ hs-airdrop [address] [value]
-       $ hs-airdrop [address] [value] --sponsor
+Usage: $ hs-airdrop [key-file] [id] [addr] [fee] --bare
+       $ hs-airdrop [key-file] [addr] [fee] --bare
+       $ hs-airdrop [addr] [value]
+       $ hs-airdrop [addr] [value] --sponsor
 
   [key-file] can be:
     - An SSH private key file.
     - An exported PGP armor keyring (.asc).
     - An exported PGP raw keyring (.pgp/.gpg).
 
-  [key-id] is only necessary for PGP keys.
+  [id] is only necessary for PGP keys.
 
-  [address] must be a Handshake bech32 address.
+  [addr] must be a Handshake bech32 address.
   [value] must be the coin value awarded to you (in HNS).
   [fee] must be a coin value (in HNS).
 
   The --sponsor flag is necessary for project sponsors.
+
+  The --bare flag will use your existing public key.
+  This is not recommended as it makes you identifiable
+  on-chain.
 
   This tool will provide a JSON representation of
   your airdrop proof as well as a base64 string.
 
   The base64 string must be passed to:
     $ hsd-rpc sendrawclaim "base64-string"
+
+Examples:
+  $ hs-airdrop ~/.gnupg/secring.gpg 0x12345678 ts1q5z7yym8xrh4quqg3kw498ngy7hnd4sruqyxnxd 0.5
+  $ hs-airdrop ~/.ssh/id_rsa ts1q5z7yym8xrh4quqg3kw498ngy7hnd4sruqyxnxd 0.5
+  $ hs-airdrop ~/.ssh/id_rsa ts1q5z7yym8xrh4quqg3kw498ngy7hnd4sruqyxnxd 0.5 --bare
+  $ hs-airdrop ts1q5z7yym8xrh4quqg3kw498ngy7hnd4sruqyxnxd 5000
+  $ hs-airdrop ts1q5z7yym8xrh4quqg3kw498ngy7hnd4sruqyxnxd 1000000 --sponsor
 ```
 
 ## License

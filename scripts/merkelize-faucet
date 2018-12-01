@@ -1,0 +1,206 @@
+#!/usr/bin/env node
+
+'use strict';
+
+const assert = require('bsert');
+const fs = require('bfile');
+const Path = require('path');
+const bio = require('bufio');
+const blake2b = require('bcrypto/lib/blake2b');
+const sha256 = require('bcrypto/lib/sha256');
+const merkle = require('bcrypto/lib/mrkl');
+const AirdropKey = require('../lib/key');
+
+/*
+ * Constants
+ */
+
+assert(process.argv.length > 2);
+
+const PREFIX = process.argv[2];
+const FAUCET_FILE = Path.resolve(__dirname, '..', 'build', 'faucet.bin');
+const FAUCET_JSON = Path.resolve(__dirname, '..', 'etc', 'faucet.json');
+const PROOF_FILE = Path.resolve(__dirname, '..', 'build', 'proof.json');
+
+/*
+ * Main
+ */
+
+async function main() {
+  const hasher = new Hasher();
+  const checksum = await hasher.hash();
+  const leaves = hasher.leaves;
+
+  console.log('Wrote merkle tree with %d leaves.', leaves.length);
+
+  const root = hasher.hashTree();
+
+  console.log('Checksum: %s', checksum.toString('hex'));
+  console.log('Tree Root: %s', root.toString('hex'));
+  console.log('Leaves: %d', leaves.length);
+  console.log('Depth: %d', getDepth(leaves.length));
+  console.log('Participants: %d', hasher.participants);
+  console.log('Faucet Total: %d', hasher.faucet);
+  console.log('Sponsors: %d', hasher.sponsors);
+  console.log('Creators: %d', hasher.creators);
+  console.log('External Total: %d', hasher.external);
+
+  assert(hasher.faucet === 0);
+  assert(hasher.external === 204000000e6);
+
+  const json = JSON.stringify({
+    checksum: checksum.toString('hex'),
+    root: root.toString('hex'),
+    leaves: leaves.length,
+    depth: getDepth(leaves.length),
+    participants: hasher.participants,
+    faucet: hasher.faucet,
+    sponsors: hasher.sponsors,
+    creators: hasher.creators,
+    external: hasher.external
+  }, null, 2);
+
+  return fs.writeFile(FAUCET_JSON, json + '\n');
+}
+
+/*
+ * Hasher
+ */
+
+class Hasher {
+  constructor() {
+    this.leaves = [];
+    this.proof = [];
+    this.participants = 0;
+    this.faucet = 0;
+    this.sponsors = 0;
+    this.creators = 0;
+    this.external = 0;
+  }
+
+  async hash() {
+    await this.hashSponsors();
+    await this.hashCreators();
+    await this.hashFaucet();
+    await this.writeProof();
+
+    return this.writeTree();
+  }
+
+  async hashSponsors() {
+    const sponsors = await readJSON(PREFIX, 'sponsors.json');
+
+    for (const {address, value} of sponsors) {
+      const key = AirdropKey.fromAddress(address, value, true);
+      const hash = key.hash();
+
+      this.leaves.push(hash);
+      this.proof.push([hash, address, value, true]);
+      this.sponsors += 1;
+      this.external += value;
+    }
+
+    console.log('Valid sponsor addresses: %d', sponsors.length);
+  }
+
+  async hashCreators() {
+    const creators = await readJSON(PREFIX, 'creators.json');
+
+    for (const {address, value} of creators) {
+      const key = AirdropKey.fromAddress(address, value, false);
+      const hash = key.hash();
+
+      this.leaves.push(hash);
+      this.proof.push([hash, address, value, false]);
+      this.creators += 1;
+      this.external += value;
+    }
+
+    console.log('Valid creator addresses: %d', creators.length);
+  }
+
+  async hashFaucet() {
+    const faucet = await readJSON(PREFIX, 'faucet.json');
+
+    for (const {address, value} of faucet) {
+      const key = AirdropKey.fromAddress(address, value, false);
+      const hash = key.hash();
+
+      this.leaves.push(hash);
+      this.proof.push([hash, address, value, false]);
+      this.participants += 1;
+      this.faucet += value;
+    }
+
+    console.log('Valid participant addresses: %d', faucet.length);
+  }
+
+  async writeProof() {
+    const proof = this.proof.slice();
+
+    // proof.sort(([x], [y]) => x.compare(y));
+
+    const json = proof.map(x => x.slice(1));
+    const str = JSON.stringify(json, null, 2);
+
+    return fs.writeFile(PROOF_FILE, str + '\n');
+  }
+
+  async writeTree() {
+    const size = 4 + this.leaves.length * 32;
+    const bw = bio.write(size);
+
+    this.leaves.sort((x, y) => x.compare(y));
+
+    bw.writeU32(this.leaves.length);
+
+    for (const hash of this.leaves)
+      bw.writeBytes(hash);
+
+    const raw = bw.render();
+
+    await fs.writeFile(FAUCET_FILE, raw);
+
+    return sha256.digest(raw);
+  }
+
+  hashTree() {
+    return merkle.createRoot(blake2b, this.leaves);
+  }
+}
+
+/*
+ * Helpers
+ */
+
+async function readText(...args) {
+  const file = Path.resolve(...args);
+  return fs.readFile(file, 'utf8');
+}
+
+async function readJSON(...args) {
+  const str = await readText(...args);
+  return JSON.parse(str);
+}
+
+function getDepth(size) {
+  assert((size >>> 0) === size);
+
+  let depth = 0;
+
+  while (size > 1) {
+    depth += 1;
+    size = (size + 1) >>> 1;
+  }
+
+  return depth;
+}
+
+/*
+ * Execute
+ */
+
+main().catch((err) => {
+  console.error(err.stack);
+  process.exit(1);
+});
