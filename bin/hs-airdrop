@@ -427,7 +427,7 @@ function usage() {
   console.error('  your airdrop proof as well as a base64 string.');
   console.error('');
   console.error('  The base64 string must be passed to:');
-  console.error('    $ hsd-rpc sendrawclaim "base64-string"');
+  console.error('    $ hsd-rpc sendrawairdrop "base64-string"');
   console.error('');
   console.error('Examples:');
   console.error(`  $ hs-airdrop ~/.gnupg/secring.gpg 0x12345678 ${ADDR} 0.5`);
@@ -573,7 +573,7 @@ async function main(argv) {
   console.log('JSON:');
   console.log(JSON.stringify(proof.toJSON(), null, 2));
   console.log('');
-  console.log('Base64 (pass this to $ hsd-rpc sendrawclaim):');
+  console.log('Base64 (pass this to $ hsd-rpc sendrawairdrop):');
   console.log(proof.toBase64());
 }
 

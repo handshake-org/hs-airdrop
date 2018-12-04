@@ -123,7 +123,7 @@ Usage: $ hs-airdrop [key-file] [id] [addr] [fee] --bare
   your airdrop proof as well as a base64 string.
 
   The base64 string must be passed to:
-    $ hsd-rpc sendrawclaim "base64-string"
+    $ hsd-rpc sendrawairdrop "base64-string"
 
 Examples:
   $ hs-airdrop ~/.gnupg/secring.gpg 0x12345678 ts1q5z7yym8xrh4quqg3kw498ngy7hnd4sruqyxnxd 0.5
