@@ -10,6 +10,8 @@ const blake2b = require('bcrypto/lib/blake2b');
 const sha256 = require('bcrypto/lib/sha256');
 const merkle = require('bcrypto/lib/mrkl');
 const AirdropKey = require('../lib/key');
+const tree = require('../etc/tree.json');
+const {reward: TREE_REWARD} = tree;
 
 /*
  * Constants
@@ -41,11 +43,11 @@ async function main() {
   console.log('Depth: %d', getDepth(leaves.length));
   console.log('Participants: %d', hasher.participants);
   console.log('Faucet Total: %d', hasher.faucet);
+  console.log('Shares: %d', hasher.shares);
   console.log('Sponsors: %d', hasher.sponsors);
   console.log('Creators: %d', hasher.creators);
   console.log('External Total: %d', hasher.external);
 
-  assert(hasher.faucet === 0);
   assert(hasher.external === 204000000e6);
 
   const json = JSON.stringify({
@@ -55,6 +57,7 @@ async function main() {
     depth: getDepth(leaves.length),
     participants: hasher.participants,
     faucet: hasher.faucet,
+    shares: hasher.shares,
     sponsors: hasher.sponsors,
     creators: hasher.creators,
     external: hasher.external
@@ -73,6 +76,7 @@ class Hasher {
     this.proof = [];
     this.participants = 0;
     this.faucet = 0;
+    this.shares = 0;
     this.sponsors = 0;
     this.creators = 0;
     this.external = 0;
@@ -122,7 +126,8 @@ class Hasher {
   async hashFaucet() {
     const faucet = await readJSON(PREFIX, 'faucet.json');
 
-    for (const {address, value} of faucet) {
+    for (const {address, shares} of faucet) {
+      const value = TREE_REWARD * shares;
       const key = AirdropKey.fromAddress(address, value, false);
       const hash = key.hash();
 
@@ -130,6 +135,7 @@ class Hasher {
       this.proof.push([hash, address, value, false]);
       this.participants += 1;
       this.faucet += value;
+      this.shares += shares;
     }
 
     console.log('Valid participant addresses: %d', faucet.length);

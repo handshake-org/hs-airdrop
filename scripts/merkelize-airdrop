@@ -23,7 +23,8 @@ const {SSHPublicKey} = ssh;
 
 assert(process.argv.length > 2);
 
-const PREFIX = process.argv[2];
+const PREFIX = Path.resolve(process.argv[2]);
+const BUILD_DIR = Path.resolve(__dirname, '..', 'build');
 const TREE_FILE = Path.resolve(__dirname, '..', 'build', 'tree.bin');
 const TREE_JSON = Path.resolve(__dirname, '..', 'etc', 'tree.json');
 const NONCE_DIR = Path.resolve(__dirname, '..', 'build', 'nonces');
@@ -45,8 +46,7 @@ async function main() {
   );
 
   const root = hasher.hashTree();
-  const maxAirdrop = MAX_AIRDROP - hasher.faucet;
-  const reward = Math.floor(maxAirdrop / leaves.length);
+  const reward = Math.floor(MAX_AIRDROP / (leaves.length + hasher.shares));
 
   console.log('Checksum: %s', checksum.toString('hex'));
   console.log('Tree Root: %s', root.toString('hex'));
@@ -55,9 +55,11 @@ async function main() {
   console.log('Max Keys: %d', hasher.subleaves);
   console.log('Depth: %d', getDepth(leaves.length));
   console.log('Subdepth: %d', getDepth(hasher.subleaves));
+  console.log('Faucet: %s', hasher.faucet);
+  console.log('Shares: %s', hasher.shares);
   console.log('Reward: %d', reward);
 
-  assert(((leaves.length * reward) + hasher.faucet) <= MAX_AIRDROP);
+  assert((leaves.length + hasher.shares) * reward <= MAX_AIRDROP);
 
   const json = JSON.stringify({
     checksum: checksum.toString('hex'),
@@ -67,6 +69,8 @@ async function main() {
     subleaves: hasher.subleaves,
     depth: getDepth(leaves.length),
     subdepth: getDepth(hasher.subleaves),
+    faucet: hasher.faucet,
+    shares: hasher.shares,
     reward,
     checksums: hasher.checksums.map(h => h.toString('hex'))
   }, null, 2);
@@ -86,6 +90,7 @@ class Hasher {
     this.existing = new Set();
     this.subleaves = 1;
     this.faucet = 0;
+    this.shares = 0;
 
     for (let i = 0; i < 256; i++)
       this.buckets.push([]);
@@ -107,6 +112,9 @@ class Hasher {
   }
 
   async hash() {
+    await fs.rimraf(BUILD_DIR);
+    await fs.mkdirp(NONCE_DIR, 0o755);
+
     await this.readExisting();
     await this.hashGithub();
     await this.hashStrongset();
@@ -120,19 +128,22 @@ class Hasher {
 
     // Format:
     // {
-    //   github: String|null,
-    //   pgp: String|null,
+    //   email: String,
+    //   github: String|null, // username
+    //   pgp: String|null, // email
+    //   freenode: String|null, // username
     //   address: String,
-    //   value: Number
+    //   shares: Number
     // }
-    for (const {github, pgp, value} of faucet) {
+    for (const {github, pgp, shares} of faucet) {
       if (github)
         this.existing.add(github.toLowerCase());
 
       if (pgp)
         this.existing.add(pgp.toLowerCase());
 
-      this.faucet += value;
+      this.faucet += 1;
+      this.shares += shares;
     }
   }
 
@@ -339,7 +350,7 @@ class Hasher {
 
       const email = block.headers.get('Email');
 
-      if (email && this.existing.has(email.toLowerCase())) {
+      if (email && this.existing.has(email.trim().toLowerCase())) {
         console.log('Already have strongset member: %s', email);
         continue;
       }
@@ -398,9 +409,6 @@ class Hasher {
   }
 
   async writeNonces() {
-    if (!await fs.exists(NONCE_DIR))
-      await fs.mkdir(NONCE_DIR, 0o755);
-
     let total = 0;
 
     for (let i = 0; i < 256; i++) {
