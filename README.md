@@ -6,7 +6,7 @@ source developers.
 ## How it works
 
 The top ~250,000 users on github have had their SSH keys and PGP added to a
-[merkle tree][tree]. Out of those ~250,000 users, ~175,000 of them had valid
+[Urkel Tree][https://github.com/handshake-org/urkel]. Out of those ~250,000 users, ~175,000 of them had valid
 SSH and PGP keys at the time of tree creation.
 
 If you had 15 or more followers on github during the week of 2018-08-27, your
