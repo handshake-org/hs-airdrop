@@ -43,7 +43,8 @@ const {
   checksum: TREE_CHECKSUM,
   leaves: TREE_LEAVES,
   keys: TREE_KEYS,
-  checksums: TREE_CHECKSUMS
+  checksums: TREE_CHECKSUMS,
+  reward: TREE_REWARD
 } = tree;
 
 const {
@@ -403,7 +404,7 @@ function usage() {
   console.error('');
   console.error('Usage: $ hs-airdrop [key-file] [id] [addr] [fee] --bare');
   console.error('       $ hs-airdrop [key-file] [addr] [fee] --bare');
-  console.error('       $ hs-airdrop [addr] [value]');
+  console.error('       $ hs-airdrop [addr] [value/shares]');
   console.error('       $ hs-airdrop [addr] [value] --sponsor');
   console.error('');
   console.error('  [key-file] can be:');
@@ -415,6 +416,7 @@ function usage() {
   console.error('');
   console.error('  [addr] must be a Handshake bech32 address.');
   console.error('  [value] must be the coin value awarded to you (in HNS).');
+  console.error('  [shares] may be the num. of shares awarded by the faucet.');
   console.error('  [fee] must be a coin value (in HNS).');
   console.error('');
   console.error('  The --sponsor flag is necessary for project sponsors.');
@@ -434,6 +436,7 @@ function usage() {
   console.error(`  $ hs-airdrop ~/.ssh/id_rsa ${ADDR} 0.5`);
   console.error(`  $ hs-airdrop ~/.ssh/id_rsa ${ADDR} 0.5 --bare`);
   console.error(`  $ hs-airdrop ${ADDR} 5000`);
+  console.error(`  $ hs-airdrop ${ADDR} 2 # shares`);
   console.error(`  $ hs-airdrop ${ADDR} 1000000 --sponsor`);
   console.error('');
 }
@@ -502,13 +505,22 @@ async function main(argv) {
     }
 
     case 'addr': {
+      const [b32, amount] = argv;
+
       if (argv.length < 2) {
         usage();
         return;
       }
 
-      const [b32, amount] = argv;
-      const value = fixed.decode(amount, 6);
+      let value = fixed.decode(amount, 6);
+
+      // Todo: get faucet addresses/shares
+      // from non-inflation proof file.
+      if (value < 5e6 && !sponsor) {
+        value /= 1e6;
+        value >>>= 0;
+        value *= TREE_REWARD;
+      }
 
       key = {
         type: 'addr',
