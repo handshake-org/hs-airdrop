@@ -1,11 +1,11 @@
 {
-  "checksum": "bf41ef1e9fe313e674eb32dd95e71338c01be9fa5413fd8dbe99ba32c416e16c",
-  "root": "4c6cbc2f051396836be7cadfcb5ed64f9b538ab90f27aa06c3a5333c2eccc0a1",
-  "leaves": 1348,
+  "checksum": "8adaa48ea26e8a403707e9928af907e9b37d8bdd66b7305c0ad2bcb5185e0318",
+  "root": "46f10337bb5f91adb554f369405b802e864bfc59ea48a6ca2d2e33128286a5ce",
+  "leaves": 1406,
   "depth": 11,
-  "participants": 1152,
-  "faucet": 7210996294824,
-  "shares": 1554,
+  "participants": 1210,
+  "faucet": 7497451191616,
+  "shares": 1616,
   "sponsors": 67,
   "creators": 129,
   "external": 204000000000000
