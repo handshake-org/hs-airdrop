@@ -52,6 +52,10 @@ const {
   leaves: FAUCET_LEAVES
 } = faucet;
 
+// TODO: Separate into another meta json file.
+const PROOF_CHECKSUM =
+  '515884a61a5f4e06b6a580d2bbc7c12b526ee1c5616009c4ca21056af6b0d62c';
+
 // Test address.
 const ADDR = 'ts1q5z7yym8xrh4quqg3kw498ngy7hnd4sruqyxnxd';
 
@@ -110,6 +114,11 @@ async function readFaucetFile() {
 async function readNonceFile(index) {
   assert((index & 0xff) === index);
   return readFile('nonces', `${pad(index)}.bin`, TREE_CHECKSUMS[index]);
+}
+
+async function readProofFile() {
+  const raw = await readFile('proof.json', PROOF_CHECKSUM);
+  return JSON.parse(raw.toString('utf8'));
 }
 
 async function readLeaves() {
@@ -223,6 +232,20 @@ async function findNonce(key, priv) {
   }
 
   throw new Error(`Could not find nonce in bucket ${bucket}.`);
+}
+
+async function findProofEntry(addr) {
+  const target = parseAddress(addr);
+  const items = await readProofFile();
+
+  for (const [address, value, sponsor] of items) {
+    const {hash} = parseAddress(address);
+
+    if (hash.equals(target.hash))
+      return [value, sponsor];
+  }
+
+  throw new Error('Address is not a faucet or sponsor address.');
 }
 
 async function createProof(key, priv, bare = false) {
@@ -404,6 +427,7 @@ function usage() {
   console.error('');
   console.error('Usage: $ hs-airdrop [key-file] [id] [addr] [fee] --bare');
   console.error('       $ hs-airdrop [key-file] [addr] [fee] --bare');
+  console.error('       $ hs-airdrop [addr]');
   console.error('       $ hs-airdrop [addr] [value/shares]');
   console.error('       $ hs-airdrop [addr] [value] --sponsor');
   console.error('');
@@ -415,7 +439,7 @@ function usage() {
   console.error('  [id] is only necessary for PGP keys.');
   console.error('');
   console.error('  [addr] must be a Handshake bech32 address.');
-  console.error('  [value] must be the coin value awarded to you (in HNS).');
+  console.error('  [value] may be the coin value awarded to you (in HNS).');
   console.error('  [shares] may be the num. of shares awarded by the faucet.');
   console.error('  [fee] must be a coin value (in HNS).');
   console.error('');
@@ -435,6 +459,7 @@ function usage() {
   console.error(`  $ hs-airdrop ~/.gnupg/secring.gpg 0x12345678 ${ADDR} 0.5`);
   console.error(`  $ hs-airdrop ~/.ssh/id_rsa ${ADDR} 0.5`);
   console.error(`  $ hs-airdrop ~/.ssh/id_rsa ${ADDR} 0.5 --bare`);
+  console.error(`  $ hs-airdrop ${ADDR}`);
   console.error(`  $ hs-airdrop ${ADDR} 5000`);
   console.error(`  $ hs-airdrop ${ADDR} 2 # shares`);
   console.error(`  $ hs-airdrop ${ADDR} 1000000 --sponsor`);
@@ -458,10 +483,11 @@ function spliceArg(argv, name) {
 async function main(argv) {
   assert(Array.isArray(argv));
 
-  const sponsor = spliceArg(argv, '--sponsor');
+  let sponsor = spliceArg(argv, '--sponsor');
+
   const bare = spliceArg(argv, '--bare');
 
-  if (argv.length < 2) {
+  if (argv.length < 1) {
     usage();
     return;
   }
@@ -505,21 +531,22 @@ async function main(argv) {
     }
 
     case 'addr': {
-      const [b32, amount] = argv;
+      const b32 = argv[0];
 
-      if (argv.length < 2) {
-        usage();
-        return;
-      }
+      let value = 0;
 
-      let value = fixed.decode(amount, 6);
+      if (argv.length > 1) {
+        const amount = argv[1];
 
-      // Todo: get faucet addresses/shares
-      // from non-inflation proof file.
-      if (value < 5e6 && !sponsor) {
-        value /= 1e6;
-        value >>>= 0;
-        value *= TREE_REWARD;
+        value = fixed.decode(amount, 6);
+
+        if (value < 5e6 && !sponsor) {
+          value /= 1e6;
+          value >>>= 0;
+          value *= TREE_REWARD;
+        }
+      } else {
+        [value, sponsor] = await findProofEntry(b32);
       }
 
       key = {
@@ -547,21 +574,7 @@ async function main(argv) {
   if (sponsor && !key.pub.isAddress())
     throw new Error('Must have an address to be a sponsor.');
 
-  const address = bech32.decode(addr);
-
-  if (address.hrp !== 'hs'
-      && address.hrp !== 'ts'
-      && address.hrp !== 'rs') {
-    throw new Error('Invalid address HRP.');
-  }
-
-  if (address.version !== 0)
-    throw new Error('Invalid address version.');
-
-  if (address.hash.length !== 20
-      && address.hash.length !== 32) {
-    throw new Error('Invalid address.');
-  }
+  const address = parseAddress(addr);
 
   console.log('Attempting to create proof.');
   console.log('This may take a bit...');
@@ -602,6 +615,26 @@ function pad(index) {
     str = '0' + str;
 
   return str;
+}
+
+function parseAddress(addr) {
+  const address = bech32.decode(addr);
+
+  if (address.hrp !== 'hs'
+      && address.hrp !== 'ts'
+      && address.hrp !== 'rs') {
+    throw new Error('Invalid address HRP.');
+  }
+
+  if (address.version !== 0)
+    throw new Error('Invalid address version.');
+
+  if (address.hash.length !== 20
+      && address.hash.length !== 32) {
+    throw new Error('Invalid address.');
+  }
+
+  return address;
 }
 
 /*

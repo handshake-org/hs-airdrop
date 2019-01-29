@@ -91,7 +91,7 @@ mainnet merkle tree.
 
 ```
 $ hs-airdrop
-hs-airdrop v0.0.0
+hs-airdrop v0.0.3
 
 This tool will create the proof necessary to
 collect your faucet reward, airdrop reward, or
@@ -99,7 +99,8 @@ sponsor reward on the Handshake blockchain.
 
 Usage: $ hs-airdrop [key-file] [id] [addr] [fee] --bare
        $ hs-airdrop [key-file] [addr] [fee] --bare
-       $ hs-airdrop [addr] [value]
+       $ hs-airdrop [addr]
+       $ hs-airdrop [addr] [value/shares]
        $ hs-airdrop [addr] [value] --sponsor
 
   [key-file] can be:
@@ -110,7 +111,8 @@ Usage: $ hs-airdrop [key-file] [id] [addr] [fee] --bare
   [id] is only necessary for PGP keys.
 
   [addr] must be a Handshake bech32 address.
-  [value] must be the coin value awarded to you (in HNS).
+  [value] may be the coin value awarded to you (in HNS).
+  [shares] may be the num. of shares awarded by the faucet.
   [fee] must be a coin value (in HNS).
 
   The --sponsor flag is necessary for project sponsors.
@@ -129,7 +131,9 @@ Examples:
   $ hs-airdrop ~/.gnupg/secring.gpg 0x12345678 ts1q5z7yym8xrh4quqg3kw498ngy7hnd4sruqyxnxd 0.5
   $ hs-airdrop ~/.ssh/id_rsa ts1q5z7yym8xrh4quqg3kw498ngy7hnd4sruqyxnxd 0.5
   $ hs-airdrop ~/.ssh/id_rsa ts1q5z7yym8xrh4quqg3kw498ngy7hnd4sruqyxnxd 0.5 --bare
+  $ hs-airdrop ts1q5z7yym8xrh4quqg3kw498ngy7hnd4sruqyxnxd
   $ hs-airdrop ts1q5z7yym8xrh4quqg3kw498ngy7hnd4sruqyxnxd 5000
+  $ hs-airdrop ts1q5z7yym8xrh4quqg3kw498ngy7hnd4sruqyxnxd 2 # shares
   $ hs-airdrop ts1q5z7yym8xrh4quqg3kw498ngy7hnd4sruqyxnxd 1000000 --sponsor
 ```
 
