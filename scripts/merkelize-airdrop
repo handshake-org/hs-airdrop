@@ -266,12 +266,34 @@ class Hasher {
 
     let invalid = 0;
 
-    // [id, name, [[k1-id, k1-key-id, k1-base64, [[email, verified]]],...]]
-    for (const [id, keyID, str, emails] of keys) {
+    // [
+    //   id,
+    //   name,
+    //   [
+    //     [
+    //       k1-id,
+    //       k1-parent-id,
+    //       k1-key-id,
+    //       k1-base64,
+    //       [[email, verified], ...],
+    //       k1-uses,
+    //       k1-created,
+    //       k1-expires,
+    //       k1-depth
+    //     ],
+    //     ...
+    //   ]
+    // ]
+    for (const [id, parent, keyID, str, emails] of keys) {
       assert(Number.isSafeInteger(id) && id >= 0);
+      assert(parent === -1 || Number.isSafeInteger(parent) && parent >= 0);
       assert(typeof keyID === 'string' && keyID.length === 16);
       assert(typeof str === 'string');
       assert(Array.isArray(emails));
+
+      // No subkeys.
+      if (parent !== -1)
+        continue;
 
       let valid = false;
 
