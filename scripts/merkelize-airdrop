@@ -430,6 +430,82 @@ class Hasher {
     console.log('Invalid strongset members: %d', invalid);
   }
 
+  async hashHackerNews() {
+    const hnKeys = await readJSON(PREFIX, 'hn-keys.json');
+
+    let valid = 0;
+    let invalid = 0;
+
+    // [
+    //   hackernews-username,
+    //   keybase-username,
+    //   [
+    //     key_fingerprint,
+    //     kid,
+    //     key_type,
+    //     ctime,
+    //     mtime,
+    //     bundle
+    //   ],
+    //   [[currency, address], ...]
+    // ]
+
+    // eslint-disable-next-line
+    for (const [username, keybase, primary, addrs] of hnKeys) {
+      // eslint-disable-next-line
+      const [fp, kid, ktype, ctime, mtime, bundle] = primary;
+
+      const msg = PGPMessage.fromString(bundle);
+      assert(msg.packets.length > 0);
+
+      const pkt = msg.packets[0];
+      assert.strictEqual(pkt.type, pgp.packetTypes.PUBLIC_KEY);
+
+      const pubkey = pkt.body;
+      const id = pubkey.fingerprint().toString('hex');
+
+      if (id !== fp) {
+        console.log(
+          'Warning: PGP Key ID %s != %s for %s! (hn)',
+          id, fp, username);
+        invalid += 1;
+        continue;
+      }
+
+      let key;
+      try {
+        key = AirdropKey.fromPGP(pubkey);
+      } catch (e) {
+        if (e.message === 'Unsupported algorithm.') {
+          invalid += 1;
+          continue;
+        }
+        throw e;
+      }
+
+      if (!key.validate()) {
+        invalid += 1;
+        continue;
+      }
+
+      valid += 1;
+
+      const hashes = [];
+
+      const newKey = this.pushNonce(key);
+
+      hashes.push(key.hash());
+
+      if (newKey)
+        hashes.push(newKey.hash());
+
+      this.leaves.push(hashes);
+    }
+
+    console.log('Valid hackernews users: %d', valid);
+    console.log('Invalid hackernews users: %d', invalid);
+  }
+
   async writeNonces() {
     let total = 0;
 
