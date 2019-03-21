@@ -24,15 +24,15 @@
   },
   "dependencies": {
     "bcrypto": "~3.0.2",
-    "bfile": "~0.1.4",
+    "bfile": "~0.2.0",
     "brq": "~0.1.6",
-    "bsert": "~0.0.8",
+    "bsert": "~0.0.9",
     "bstring": "~0.3.5",
-    "bufio": "~1.0.4",
+    "bufio": "~1.0.5",
     "goosig": "~0.0.3"
   },
   "devDependencies": {
-    "bmocha": "^1.0.0"
+    "bmocha": "^2.1.0"
   },
   "engines": {
     "node": ">=8.0.0"
