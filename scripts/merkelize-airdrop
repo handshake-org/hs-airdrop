@@ -112,12 +112,13 @@ class Hasher {
   }
 
   async hash() {
-    await fs.rimraf(BUILD_DIR);
+    await fs.remove(BUILD_DIR);
     await fs.mkdirp(NONCE_DIR, 0o755);
 
     await this.readExisting();
     await this.hashGithub();
     await this.hashStrongset();
+    await this.hashHackerNews();
     await this.writeNonces();
 
     return this.writeTree();
