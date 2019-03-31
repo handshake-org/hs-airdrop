@@ -48,7 +48,7 @@ async function main() {
   console.log('Creators: %d', hasher.creators);
   console.log('External Total: %d', hasher.external);
 
-  assert(hasher.external === 204000000e6);
+  assert(hasher.external === 214200000e6);
 
   const json = JSON.stringify({
     checksum: checksum.toString('hex'),
