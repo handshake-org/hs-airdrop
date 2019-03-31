@@ -293,8 +293,10 @@ class Hasher {
       assert(Array.isArray(emails));
 
       // No subkeys.
-      if (parent !== -1)
+      if (parent !== -1) {
+        invalid += 1;
         continue;
+      }
 
       let valid = false;
 
