@@ -23,13 +23,13 @@
     "test-file": "bmocha --reporter spec"
   },
   "dependencies": {
-    "bcrypto": "~3.0.3",
+    "bcrypto": "~3.1.0",
     "bfile": "~0.2.1",
     "brq": "~0.1.7",
     "bsert": "~0.0.10",
-    "bstring": "~0.3.6",
+    "bstring": "~0.3.8",
     "bufio": "~1.0.6",
-    "goosig": "~0.0.4"
+    "goosig": "~0.1.0"
   },
   "devDependencies": {
     "bmocha": "^2.1.0"
