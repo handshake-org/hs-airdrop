@@ -231,7 +231,7 @@ async function findNonce(key, priv) {
     }
   }
 
-  throw new Error(`Could not find nonce in bucket ${bucket}.`);
+  throw new Error(`Chosen key is not in the airdrop tree (nonce missing in bucket ${bucket}).`);
 }
 
 async function findProofEntry(addr) {
