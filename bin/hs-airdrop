@@ -235,13 +235,13 @@ async function findNonce(key, priv) {
 }
 
 async function findProofEntry(addr) {
-  const target = parseAddress(addr);
+  const [, target] = parseAddress(addr);
   const items = await readProofFile();
 
   for (const [address, value, sponsor] of items) {
-    const {hash} = parseAddress(address);
+    const [, hash] = parseAddress(address);
 
-    if (hash.equals(target.hash))
+    if (hash.equals(target))
       return [value, sponsor];
   }
 
@@ -574,15 +574,15 @@ async function main(argv) {
   if (sponsor && !key.pub.isAddress())
     throw new Error('Must have an address to be a sponsor.');
 
-  const address = parseAddress(addr);
+  const [version, hash] = parseAddress(addr);
 
   console.log('Attempting to create proof.');
   console.log('This may take a bit...');
 
   const proof = await createProof(key.pub, key.priv, bare);
 
-  proof.version = address.version;
-  proof.address = address.hash;
+  proof.version = version;
+  proof.address = hash;
   proof.fee = fee;
 
   if (fee > proof.getValue())
@@ -618,19 +618,19 @@ function pad(index) {
 }
 
 function parseAddress(addr) {
-  const address = bech32.decode(addr);
+  const [hrp, version, hash] = bech32.decode(addr);
 
-  if (address.hrp !== 'hs'
-      && address.hrp !== 'ts'
-      && address.hrp !== 'rs') {
+  if (hrp !== 'hs'
+      && hrp !== 'ts'
+      && hrp !== 'rs') {
     throw new Error('Invalid address HRP.');
   }
 
-  if (address.version !== 0)
+  if (version !== 0)
     throw new Error('Invalid address version.');
 
-  if (address.hash.length !== 20
-      && address.hash.length !== 32) {
+  if (hash.length !== 20
+      && hash.length !== 32) {
     throw new Error('Invalid address.');
   }
 
