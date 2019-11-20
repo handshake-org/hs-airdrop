@@ -1,12 +1,14 @@
 {
-  "checksum": "5b36a26070fd664308d3d30023151cba2960bd8d1ad079b6cde517f5b869f680",
-  "root": "f0f9226709f45c64aa428fcea560a4549d7764dee736a5eaea18de3b113345e8",
-  "leaves": 1405,
+  "checksum": "f8bd209276cdcc785d8773d4e22c9faab904d53029b40c7fd193bb0593eaaef8",
+  "root": "87efa19285c336e69019e01baa48d1e2cbab150769f83ed40625bf203b0757a0",
+  "leaves": 1331,
   "depth": 11,
-  "participants": 1210,
-  "faucet": 7063248364928,
-  "shares": 1616,
-  "sponsors": 68,
-  "creators": 127,
-  "external": 214200000000000
+  "participants": 1149,
+  "faucet": 6604106486990,
+  "shares": 1555,
+  "sponsors": 67,
+  "creators": 87,
+  "foss": 27,
+  "naming": 1,
+  "external": 230968000000000
 }
