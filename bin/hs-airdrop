@@ -634,7 +634,7 @@ function parseAddress(addr) {
     throw new Error('Invalid address.');
   }
 
-  return address;
+  return [version, hash];
 }
 
 /*
