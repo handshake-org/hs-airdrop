@@ -28,7 +28,8 @@ const BUILD_DIR = Path.resolve(__dirname, '..', 'build');
 const TREE_FILE = Path.resolve(__dirname, '..', 'build', 'tree.bin');
 const TREE_JSON = Path.resolve(__dirname, '..', 'etc', 'tree.json');
 const NONCE_DIR = Path.resolve(__dirname, '..', 'build', 'nonces');
-const MAX_AIRDROP = 0.952e9 * 1e6;
+const MAX_AIRDROP = 924800000 * 1e6;
+const MAX_SUBDEPTH = 10; // Small enough for plausible deniability.
 
 /*
  * Main
@@ -188,8 +189,8 @@ class Hasher {
 
       let invalid = 0;
 
-      invalid += this.parseSSHKeys(name, ssh, hashes);
       invalid += this.parsePGPKeys(name, pgp, hashes);
+      invalid += this.parseSSHKeys(name, ssh, hashes);
 
       invalidKeys += invalid;
 
@@ -224,10 +225,15 @@ class Hasher {
     assert(Array.isArray(keys));
     assert(Array.isArray(hashes));
 
+    const sorted = keys.slice();
+
+    // Sort by most recent.
+    sorted.sort((a, b) => b.id - a.id);
+
     let invalid = 0;
 
     // [id, name, [[k1-id, k1-base64],...]]
-    for (const [id, str] of keys) {
+    for (const [id, str] of sorted) {
       assert(Number.isSafeInteger(id) && id >= 0);
       assert(typeof str === 'string');
 
@@ -249,6 +255,11 @@ class Hasher {
         continue;
       }
 
+      if (hashes.length === MAX_SUBDEPTH) {
+        invalid += 1;
+        continue;
+      }
+
       const newKey = this.pushNonce(key);
 
       hashes.push(key.hash());
@@ -264,6 +275,11 @@ class Hasher {
     assert(typeof name === 'string');
     assert(Array.isArray(keys));
     assert(Array.isArray(hashes));
+
+    const sorted = keys.slice();
+
+    // Sort by most recent.
+    sorted.sort((a, b) => b.id - a.id);
 
     let invalid = 0;
 
@@ -285,7 +301,7 @@ class Hasher {
     //     ...
     //   ]
     // ]
-    for (const [id, parent, keyID, str, emails] of keys) {
+    for (const [id, parent, keyID, str, emails] of sorted) {
       assert(Number.isSafeInteger(id) && id >= 0);
       assert(parent === -1 || Number.isSafeInteger(parent) && parent >= 0);
       assert(typeof keyID === 'string' && keyID.length === 16);
@@ -348,6 +364,11 @@ class Hasher {
       }
 
       if (!key.validate()) {
+        invalid += 1;
+        continue;
+      }
+
+      if (hashes.length === MAX_SUBDEPTH) {
         invalid += 1;
         continue;
       }

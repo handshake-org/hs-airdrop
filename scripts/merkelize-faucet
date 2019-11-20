@@ -46,9 +46,9 @@ async function main() {
   console.log('Shares: %d', hasher.shares);
   console.log('Sponsors: %d', hasher.sponsors);
   console.log('Creators: %d', hasher.creators);
+  console.log('FOSS: %d', hasher.foss);
+  console.log('Naming: %d', hasher.naming);
   console.log('External Total: %d', hasher.external);
-
-  assert(hasher.external === 214200000e6);
 
   const json = JSON.stringify({
     checksum: checksum.toString('hex'),
@@ -60,6 +60,8 @@ async function main() {
     shares: hasher.shares,
     sponsors: hasher.sponsors,
     creators: hasher.creators,
+    foss: hasher.foss,
+    naming: hasher.naming,
     external: hasher.external
   }, null, 2);
 
@@ -79,12 +81,16 @@ class Hasher {
     this.shares = 0;
     this.sponsors = 0;
     this.creators = 0;
+    this.foss = 0;
+    this.naming = 0;
     this.external = 0;
   }
 
   async hash() {
     await this.hashSponsors();
     await this.hashCreators();
+    await this.hashFOSS();
+    await this.hashNaming();
     await this.hashFaucet();
     await this.writeProof();
 
@@ -123,6 +129,38 @@ class Hasher {
     console.log('Valid creator addresses: %d', creators.length);
   }
 
+  async hashFOSS() {
+    const foss = await readJSON(PREFIX, 'foss.json');
+
+    for (const {address, value} of foss) {
+      const key = AirdropKey.fromAddress(address, value, true);
+      const hash = key.hash();
+
+      this.leaves.push(hash);
+      this.proof.push([hash, address, value, true]);
+      this.foss += 1;
+      this.external += value;
+    }
+
+    console.log('Valid FOSS addresses: %d', foss.length);
+  }
+
+  async hashNaming() {
+    const naming = await readJSON(PREFIX, 'naming.json');
+
+    for (const {address, value} of naming) {
+      const key = AirdropKey.fromAddress(address, value, true);
+      const hash = key.hash();
+
+      this.leaves.push(hash);
+      this.proof.push([hash, address, value, true]);
+      this.naming += 1;
+      this.external += value;
+    }
+
+    console.log('Valid naming addresses: %d', naming.length);
+  }
+
   async hashFaucet() {
     const faucet = await readJSON(PREFIX, 'faucet.json');
 
@@ -142,11 +180,7 @@ class Hasher {
   }
 
   async writeProof() {
-    const proof = this.proof.slice();
-
-    // proof.sort(([x], [y]) => x.compare(y));
-
-    const json = proof.map(x => x.slice(1));
+    const json = this.proof.map(x => x.slice(1));
     const str = JSON.stringify(json, null, 2);
 
     return fs.writeFile(PROOF_FILE, str + '\n');
