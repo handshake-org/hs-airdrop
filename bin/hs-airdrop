@@ -54,7 +54,7 @@ const {
 
 // TODO: Separate into another meta json file.
 const PROOF_CHECKSUM =
-  'f0998ad5fee51173f4258ea155b860ac9faf5ffd437f89f9b8b12c0794a1602f';
+  '7b1499403db103b1ad41e9383afad3d5e967ee90fb924f36d4af447a1a2a9fa2';
 
 // Test address.
 const ADDR = 'ts1q5z7yym8xrh4quqg3kw498ngy7hnd4sruqyxnxd';
