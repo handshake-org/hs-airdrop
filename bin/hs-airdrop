@@ -43,7 +43,6 @@ const GITHUB_URL = 'https://github.com/handshake-org/hs-tree-data/raw/master';
 const {
   checksum: TREE_CHECKSUM,
   leaves: TREE_LEAVES,
-  keys: TREE_KEYS,
   subleaves: SUBTREE_LEAVES,
   checksums: TREE_CHECKSUMS
 } = tree;
@@ -54,7 +53,6 @@ const {
   proofChecksum: PROOF_CHECKSUM
 } = faucet;
 
-const VERSION = '0.3.0';
 const ADDR = 'hs1q5z7yyk8xrh4quqg3kw498ngy7hnd4sruqyxnxd';
 
 const HELP = `
@@ -73,6 +71,7 @@ const HELP = `
     -v, --version         output the version number
     -b, --bare            redeem airdrop publicly (i.e. without goosig)
     -f, --fee <amount>    set fee for redemption (default: 0.1)
+    -d, --data <path>     data directory for cache (default: ~/.hs-tree-data)
     -h, --help            output usage information
 
   [key-file] can be:
@@ -171,22 +170,18 @@ async function readLeaves() {
   const totalLeaves = br.readU32();
   const leaves = [];
 
-  let totalKeys = 0;
-
   for (let i = 0; i < totalLeaves; i++) {
     const hashes = [];
 
     for (let j = 0; j < SUBTREE_LEAVES; j++) {
       const hash = br.readBytes(32);
       hashes.push(hash);
-      totalKeys += 1;
     }
 
     leaves.push(hashes);
   }
 
   assert.strictEqual(br.left(), 0);
-  assert.strictEqual(totalKeys, TREE_KEYS);
   assert.strictEqual(totalLeaves, TREE_LEAVES);
 
   return leaves;
@@ -633,7 +628,7 @@ async function parseArgs() {
     switch (arg) {
       case '-v':
       case '--version': {
-        process.stdout.write(VERSION + '\n');
+        process.stdout.write(pkg.version + '\n');
         process.exit(0);
         break;
       }
