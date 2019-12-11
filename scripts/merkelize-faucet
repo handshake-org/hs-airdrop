@@ -30,14 +30,15 @@ const PROOF_FILE = Path.resolve(__dirname, '..', 'build', 'proof.json');
 
 async function main() {
   const hasher = new Hasher();
-  const checksum = await hasher.hash();
+  const [checksum, proofChecksum] = await hasher.hash();
   const leaves = hasher.leaves;
 
   console.log('Wrote merkle tree with %d leaves.', leaves.length);
 
   const root = hasher.hashTree();
 
-  console.log('Checksum: %s', checksum.toString('hex'));
+  console.log('Tree Checksum: %s', checksum.toString('hex'));
+  console.log('Proof Checksum: %s', proofChecksum.toString('hex'));
   console.log('Tree Root: %s', root.toString('hex'));
   console.log('Leaves: %d', leaves.length);
   console.log('Depth: %d', getDepth(leaves.length));
@@ -62,7 +63,8 @@ async function main() {
     creators: hasher.creators,
     foss: hasher.foss,
     naming: hasher.naming,
-    external: hasher.external
+    external: hasher.external,
+    proofChecksum: proofChecksum.toString('hex')
   }, null, 2);
 
   return fs.writeFile(FAUCET_JSON, json + '\n');
@@ -76,6 +78,7 @@ class Hasher {
   constructor() {
     this.leaves = [];
     this.proof = [];
+    this.seen = new Set();
     this.participants = 0;
     this.faucet = 0;
     this.shares = 0;
@@ -92,9 +95,23 @@ class Hasher {
     await this.hashFOSS();
     await this.hashNaming();
     await this.hashFaucet();
-    await this.writeProof();
 
-    return this.writeTree();
+    return [
+      await this.writeTree(),
+      await this.writeProof()
+    ];
+  }
+
+  check(hash) {
+    // Avoid duplicate hashes.
+    assert(Buffer.isBuffer(hash));
+
+    const hex = hash.toString('hex');
+
+    if (this.seen.has(hex))
+      throw new Error(`Already seen key: ${hex}.`);
+
+    this.seen.add(hex);
   }
 
   async hashSponsors() {
@@ -104,6 +121,7 @@ class Hasher {
       const key = AirdropKey.fromAddress(address, value, true);
       const hash = key.hash();
 
+      this.check(hash);
       this.leaves.push(hash);
       this.proof.push([hash, address, value, true]);
       this.sponsors += 1;
@@ -120,6 +138,7 @@ class Hasher {
       const key = AirdropKey.fromAddress(address, value, false);
       const hash = key.hash();
 
+      this.check(hash);
       this.leaves.push(hash);
       this.proof.push([hash, address, value, false]);
       this.creators += 1;
@@ -136,6 +155,7 @@ class Hasher {
       const key = AirdropKey.fromAddress(address, value, true);
       const hash = key.hash();
 
+      this.check(hash);
       this.leaves.push(hash);
       this.proof.push([hash, address, value, true]);
       this.foss += 1;
@@ -152,6 +172,7 @@ class Hasher {
       const key = AirdropKey.fromAddress(address, value, true);
       const hash = key.hash();
 
+      this.check(hash);
       this.leaves.push(hash);
       this.proof.push([hash, address, value, true]);
       this.naming += 1;
@@ -169,6 +190,7 @@ class Hasher {
       const key = AirdropKey.fromAddress(address, value, false);
       const hash = key.hash();
 
+      this.check(hash);
       this.leaves.push(hash);
       this.proof.push([hash, address, value, false]);
       this.participants += 1;
@@ -182,8 +204,11 @@ class Hasher {
   async writeProof() {
     const json = this.proof.map(x => x.slice(1));
     const str = JSON.stringify(json, null, 2);
+    const data = Buffer.from(str + '\n', 'utf8');
 
-    return fs.writeFile(PROOF_FILE, str + '\n');
+    await fs.writeFile(PROOF_FILE, data);
+
+    return sha256.digest(data);
   }
 
   async writeTree() {
