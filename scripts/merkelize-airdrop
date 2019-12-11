@@ -47,12 +47,12 @@ const SEED_SIZE = 30;
 
 async function main() {
   const hasher = new Hasher();
-  const [total, checksum] = await hasher.hash();
+  const checksum = await hasher.hash();
   const leaves = hasher.leaves;
 
   console.log(
     'Wrote merkle tree with %d keys and %d leaves.',
-    total,
+    hasher.total,
     leaves.length
   );
 
@@ -176,8 +176,8 @@ class Hasher {
       const [id, name, ssh] = sshKeys[i];
       const [id2, name2, pgp] = pgpKeys[i];
 
-      if ((i % 5000) === 0)
-        console.log('Github progress: %d', i / sshKeys.length);
+      if ((i % 1000) === 0)
+        console.log('Github progress: %d / %d', i, sshKeys.length);
 
       assert(Number.isSafeInteger(id) && id >= 0);
       assert(Number.isSafeInteger(id2) && id2 >= 0);
@@ -414,8 +414,8 @@ class Hasher {
       const keyID = block.headers.get('Key-ID');
       assert(keyID);
 
-      if ((i++ % 2500) === 0)
-        console.log('Strongset progress: %d', i / 50000);
+      if ((i++ % 1000) === 0)
+        console.log('Strongset progress: %d / %d', i, 60603);
 
       const email = block.headers.get('Email');
 
@@ -508,7 +508,7 @@ class Hasher {
       const [fp, kid, ktype, ctime, mtime, bundle] = primary;
 
       if ((i++ % 1000) === 0)
-        console.log('HN progress: %d', i / hnKeys.length);
+        console.log('HN progress: %d / %d', i, hnKeys.length);
 
       const msg = PGPMessage.fromString(bundle);
       assert(msg.packets.length > 0);
