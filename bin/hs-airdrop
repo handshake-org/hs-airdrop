@@ -125,7 +125,7 @@ async function readFile(...path) {
     const req = await request({
       url,
       limit: 50 << 20,
-      timeout: 600 * 1000
+      timeout: 10 * 60 * 1000
     });
 
     const raw = req.buffer();
@@ -147,6 +147,44 @@ async function readFile(...path) {
 }
 
 async function readTreeFile() {
+  if (!await fs.exists(BUILD_DIR))
+    await fs.mkdir(BUILD_DIR, 0o755);
+
+  const file = Path.resolve(BUILD_DIR, 'tree.bin');
+
+  if (!await fs.exists(file)) {
+    const stream = fs.createWriteStream(file);
+
+    for (let i = 0; i < 5; i++) {
+      const req = request.stream({
+        url: `${GITHUB_URL}/tree.bin.${i}`,
+        limit: 50 << 20,
+        timeout: 10 * 60 * 1000
+      });
+
+      req.end();
+
+      await new Promise((resolve, reject) => {
+        req.on('data', (data) => {
+          try {
+            stream.write(data);
+          } catch (e) {
+            reject(e);
+          }
+        });
+        req.once('end', resolve);
+        req.once('error', reject);
+      });
+    }
+
+    stream.end();
+
+    await new Promise((resolve, reject) => {
+      stream.once('close', resolve);
+      stream.once('error', reject);
+    });
+  }
+
   return readFile('tree.bin', TREE_CHECKSUM);
 }
 
