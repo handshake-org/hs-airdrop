@@ -212,7 +212,7 @@ async function readLeaves() {
     const hashes = [];
 
     for (let j = 0; j < SUBTREE_LEAVES; j++) {
-      const hash = br.readBytes(32);
+      const hash = br.readBytes(32, true);
       hashes.push(hash);
     }
 
