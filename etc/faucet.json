@@ -1,6 +1,6 @@
 {
-  "checksum": "37acfc863b65e1c6ea1e749adbabd0baf226a7033d4aacb22507cb1e573678c5",
-  "root": "c3e69778dcfbe7d2beae2470a1603810bd9bb8bf0e2db4b95240fbed2b74e678",
+  "checksum": "4d07b7f00793fd1b25d4ae0c5e39628bb4ceff4703bfab79e84b6a76ad35a73f",
+  "root": "568e8b83a83654187696992e84c24cb965d5e970d49d50b4382b8d02502882a9",
   "leaves": 1358,
   "depth": 11,
   "participants": 1149,
@@ -10,6 +10,6 @@
   "creators": 114,
   "foss": 27,
   "naming": 1,
-  "external": 231315975000000,
-  "proofChecksum": "93aa46a136ab889c6f920fb2e82fcc0e4ab40d067d3d39c238a9c92b2d9b699e"
+  "external": 230808510000000,
+  "proofChecksum": "a2c0dfc92218b4a110ec8c5c6b2e9551c0f631650db9b30d37b684a335bf0dcc"
 }
