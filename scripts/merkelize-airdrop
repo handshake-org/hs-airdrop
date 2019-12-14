@@ -31,7 +31,7 @@ const TREE_FILE = Path.resolve(__dirname, '..', 'build', 'tree.bin');
 const TREE_JSON = Path.resolve(__dirname, '..', 'etc', 'tree.json');
 const NONCE_DIR = Path.resolve(__dirname, '..', 'build', 'nonces');
 const MAX_AIRDROP = 924800000 * 1e6;
-const SUBTREE_LEAVES = 16;
+const SUBTREE_LEAVES = 8;
 
 // Max ciphertext size for RSA 1024
 // PKCS1v1.5 is `klen - 2 * hlen - 2`
