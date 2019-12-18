@@ -200,7 +200,7 @@ class Hasher {
 
       // User gets the same PRNG seed for each key.
       const hashes = [];
-      const seed = random.randomBytes(SEED_SIZE);
+      const seed = generateSeed();
       const [valid1, invalid1] = this.parsePGPKeys(name, pgp, hashes, seed);
       const [valid2, invalid2] = this.parseSSHKeys(name, ssh, hashes, seed);
       const valid = valid1 + valid2;
@@ -461,7 +461,7 @@ class Hasher {
 
       valid += 1;
 
-      const seed = random.randomBytes(SEED_SIZE);
+      const seed = generateSeed();
       const newKey = this.pushNonce(key, seed);
       const hashes = [];
 
@@ -545,7 +545,7 @@ class Hasher {
 
       valid += 1;
 
-      const seed = random.randomBytes(SEED_SIZE);
+      const seed = generateSeed();
       const newKey = this.pushNonce(key, seed);
       const hashes = [];
 
@@ -666,6 +666,15 @@ function pad(index) {
     str = '0' + str;
 
   return str;
+}
+
+function generateSeed() {
+  const entropy = random.randomBytes(64);
+  const hash = sha256.digest(entropy);
+
+  assert(hash.length >= SEED_SIZE);
+
+  return hash.slice(0, SEED_SIZE);
 }
 
 function padSubtree(hashes, seed) {
