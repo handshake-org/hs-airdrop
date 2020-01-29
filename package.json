@@ -1,6 +1,6 @@
 {
   "name": "hs-airdrop",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "Handshake airdrop redemption",
   "keywords": [
     "handshake",
@@ -23,12 +23,12 @@
     "test-file": "bmocha --reporter spec"
   },
   "dependencies": {
-    "bcrypto": "~4.3.1",
+    "bcrypto": "~5.0.0",
     "bfile": "~0.2.1",
     "brq": "~0.1.8",
     "bsert": "~0.0.10",
     "bufio": "~1.0.6",
-    "goosig": "~0.5.0"
+    "goosig": "~0.6.0"
   },
   "devDependencies": {
     "bmocha": "^2.1.3"
