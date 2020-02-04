@@ -124,7 +124,7 @@ async function readFile(...path) {
 
     const req = await request({
       url,
-      limit: 50 << 20,
+      limit: 100 << 20,
       timeout: 10 * 60 * 1000
     });
 
