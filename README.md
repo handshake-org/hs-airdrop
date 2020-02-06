@@ -89,6 +89,17 @@ mainnet merkle tree.
 
 ## Usage
 
+The airdrop tree was most recently updated on
+[Feb 2, 2020](https://github.com/handshake-org/hs-airdrop/commit/9ab50eeb5b3f6ceb785cc94394facc6ea630096c).
+If you have ever run `hs-airdrop` before then, you will need to download the program
+again from this repo AND clear the old tree data from your drive.
+The old tree data will be in your home directory at `~/.hs-tree-data`.
+Once removed, `hs-airdrop` will download the updated tree from
+[this source](https://github.com/handshake-org/hs-tree-data).
+
+Transactions are not allowed for the first 2,016 blocks on main net (about 2 weeks),
+and will be rejected by network peers. Be sure to wait before sending your proof!
+
 ```
 $ hs-airdrop
 hs-airdrop v0.0.3
