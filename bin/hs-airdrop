@@ -271,8 +271,13 @@ async function findNonces(key, priv) {
     }
   }
 
-  if (out.length === 0)
-    throw new Error(`Could not find nonce in bucket ${bucket}.`);
+  if (out.length === 0) {
+    console.log(`Could not find nonce in bucket ${bucket}.`);
+    console.log('This means your key was not found in the airdrop tree.');
+    console.log('If you registered at handshake.org, use that address.');
+    console.log('Usage: $ hs-airdrop [addr]');
+    process.exit(1);
+  }
 
   return out;
 }
