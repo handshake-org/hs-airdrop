@@ -20,8 +20,7 @@ Handshake blockchain, allowing the owner of a key to publish a signed merkle
 proof on-chain in order to redeem their airdrop.
 
 With the key list as it currently stands, every open source developer will
-receive __4,662.598321__ HNS coins from the airdrop (subject to change before
-mainnet).
+receive __4,246.994314__ HNS coins from the airdrop.
 
 ---
 
