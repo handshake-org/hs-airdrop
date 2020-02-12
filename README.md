@@ -147,6 +147,12 @@ Examples:
   $ hs-airdrop ts1q5z7yym8xrh4quqg3kw498ngy7hnd4sruqyxnxd 1000000 --sponsor
 ```
 
+If you are not in the faucet tree, you need to use this tool to generate a proof with your GitHub key. All you need to pass is your key file and a Handshake address:
+
+```
+  $ hs-airdrop [key-file] [addr]
+```
+
 ## License
 
 MIT License.
