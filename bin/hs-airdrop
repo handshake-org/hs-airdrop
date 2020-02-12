@@ -272,11 +272,10 @@ async function findNonces(key, priv) {
   }
 
   if (out.length === 0) {
-    console.log(`Could not find nonce in bucket ${bucket}.`);
-    console.log('This means your key was not found in the airdrop tree.');
-    console.log('If you registered at handshake.org, use that address.');
-    console.log('Usage: $ hs-airdrop [addr]');
-    process.exit(1);
+    const err = new Error();
+    err.name = 'NonceError';
+    err.message = `Could not find nonce in bucket ${bucket}.`;
+    throw err;
   }
 
   return out;
@@ -803,5 +802,13 @@ function parseAddress(addr) {
 
 main(process.argv).catch((err) => {
   console.error(err.stack);
+
+  if (err.name === 'NonceError') {
+    console.error('');
+    console.error('This means your key was not found in the airdrop tree.');
+    console.error('If you registered at handshake.org, use that address.');
+    console.error('Usage: $ hs-airdrop [addr]');
+  }
+
   process.exit(1);
 });
