@@ -43,13 +43,13 @@ and PGP keys are generally tied to a person's real identity. While impractical,
 a determined analyst could link an on-chain airdrop redemption to a
 person's identity.
 
-To solve the privacy issue in a non-interactive way, a 32 byte scalar has been
+To solve the privacy issue in a non-interactive way, a 32 byte nonce has been
 [encrypted to][nonces] your public key (you will have to grind a file full of
-encrypted blobs to find it). For EC keys, this scalar is meant to be _added_ to
-your existing key pair (a la HD derivation). For RSA keys, a much more
+many ciphertexts to find it). For EC keys, this nonce is treated as a scalar
+and is used to derive a new key from your old one. For RSA keys, a much more
 [complicated setup][goosig] is necessary. In either case, once your _new_ key
-is derived using this scalar, you will be able to find its corresponding leaf
-in the merkle tree published above.
+is derived using this nonce, you will be able to find its corresponding leaf in
+the merkle tree published above.
 
 Publishing a signed airdrop proof using this method _does not_ leak any
 information about your actual identity.
