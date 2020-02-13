@@ -23,8 +23,8 @@
     "test-file": "bmocha --reporter spec"
   },
   "dependencies": {
-    "bcrypto": "~5.0.0",
-    "bfile": "~0.2.1",
+    "bcrypto": "~5.0.3",
+    "bfile": "~0.2.2",
     "brq": "~0.1.8",
     "bsert": "~0.0.10",
     "bufio": "~1.0.6",
