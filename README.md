@@ -34,7 +34,15 @@ clone项目 `git clone https://github.com/rebase-network/hs-airdrop`
 
 > <img src="./images/gyp.png" width="600">
 
-4. 如何验证中奖
+4. 下载hs-tree-data数据
+
+`git clone https://github.com/handshake-org/hs-tree-data  ~/.hs-tree-data`
+
+在验证中奖的过程中，会下载hs-tree-data，国内网络不好的情况下，会出现timeout，所以提前下载下来。
+
+来源：https://github.com/handshake-org/hs-airdrop/issues/57
+
+5. 如何验证中奖
 
 进入到项目根目录，执行 `./bin/hs-airdrop ~/.ssh/id_rsa hs1q......`
 
@@ -46,7 +54,7 @@ clone项目 `git clone https://github.com/rebase-network/hs-airdrop`
 有`Found nonce!`提示，表示**中奖了**，恭喜恭喜！
 >![](images/award.jpg)
 
-5. 中奖后，需要把币发送的刚申请的hns地址
+6. 中奖后，需要把币发送的刚申请的hns地址
 
 在上一步中，验证是否中奖的过程中，如果中奖了会有很多输出内容，并提示 `hsd-rpc sendrawairdrop "base64-string"`
 > <img src="./images/sendrawairdrop.png" width="600">
@@ -57,17 +65,17 @@ clone项目 `git clone https://github.com/rebase-network/hs-airdrop`
 
 然后去 [hnscan](https://hnscan.com/) 查看转账记录。
 
-6. 等待到账
+7. 等待到账
 
 大概需要16～24个小时才能到账，也许会更长 :cry:
 >![](images/tx.png)
 
-7. 验证个人身份
+8. 验证个人身份
 
 进入 [https://www.namebase.io/verify/](https://www.namebase.io/verify/)，进行 kyc(Know Your Customer)
 你可以通过上传 **中国大陆居民身份证件**验证，如果只用一次，可以上传 fake id card，验证时间不需要很长。
 
-8. 交易
+9. 交易
 
 去 [https://www.namebase.io/sell](https://www.namebase.io/sell)，请操盘手开始表演。
 > <img src="./images/cashout.png" width="600">
