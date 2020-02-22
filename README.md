@@ -48,7 +48,7 @@ clone项目 `git clone https://github.com/rebase-network/hs-airdrop`
 
 `~/.ssh/id_rsa` 是你的github ssh的私钥文件，是私钥，不要用ssh公钥，也不要用钱包地址的私钥，`hs1q......` 是之前得到的hns地址
 
-有`not find nonce`提示，表示**没中奖**
+有`not find nonce`提示，表示**没中奖**，以下内容可以不用看了 :cry:
 >![](images/noaward.jpg)
 
 有`Found nonce!`提示，表示**中奖了**，恭喜恭喜！
@@ -56,12 +56,17 @@ clone项目 `git clone https://github.com/rebase-network/hs-airdrop`
 
 6. 中奖后，需要把币发送的刚申请的hns地址
 
-在上一步中，验证是否中奖的过程中，如果中奖了会有很多输出内容，并提示 `hsd-rpc sendrawairdrop "base64-string"`
+在上一步验证是否中奖的过程中，如果中奖了会有很多输出内容，并提示 `hsd-rpc sendrawairdrop "base64-string"`
 > <img src="./images/sendrawairdrop.png" width="600">
 
 去 [https://www.namebase.io/airdrop](https://www.namebase.io/airdrop)，鼠标滚到最下面，把生成的 `base64-string` 填入进去，然后点击submit。如下图所示。
 
 > <img src="./images/airdrop.png" width="600">
+
+如果出现 `claimNotNamebaseAddr` 错误提示，请重新申请地址，重复之前的操作。
+
+发送成功后，会有窗口提示。
+> <img src="./images/ok.jpg" width="300">
 
 然后去 [hnscan](https://hnscan.com/) 查看转账记录。
 
@@ -151,3 +156,4 @@ clone项目 `git clone https://github.com/rebase-network/hs-airdrop`
 67. https://github.com/Eagerdact
 68. https://github.com/svein1989
 69. https://github.com/BBBob
+70. https://github.com/BrunoProgramming
