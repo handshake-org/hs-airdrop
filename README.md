@@ -155,3 +155,4 @@ clone项目 `git clone https://github.com/rebase-network/hs-airdrop`
 66. https://github.com/qyliuyawei
 67. https://github.com/Eagerdact
 68. https://github.com/svein1989
+69. https://github.com/BrunoProgramming
