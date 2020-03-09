@@ -3,6 +3,16 @@
 Redemption tool for the Handshake network's decentralized airdrop to open
 source developers.
 
+## A word of warning
+
+In past weeks, it's become apparent that there are now various scams and
+phishing attempts targeting github users. Handshake contributors will _never_
+ask you for your private keys, and revealing your private key to _anyone_ is
+not necessary to redeem the airdrop.
+
+`hs-airdrop` is the only tool recommended for airdrop redemption. Use anything
+else at your own risk.
+
 ## How it works
 
 The top ~250,000 users on github have had their SSH keys and PGP added to a
