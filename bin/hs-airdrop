@@ -14,7 +14,7 @@ const bech32 = require('bcrypto/lib/encoding/bech32');
 const blake2b = require('bcrypto/lib/blake2b');
 const sha256 = require('bcrypto/lib/sha256');
 const merkle = require('bcrypto/lib/mrkl');
-const HKDF = require('bcrypto/lib/hkdf');
+const hkdf = require('bcrypto/lib/hkdf');
 const fixed = require('../lib/fixed');
 const AirdropKey = require('../lib/key');
 const AirdropProof = require('../lib/proof');
@@ -384,16 +384,25 @@ async function createKeyProofs(options) {
   return proofs;
 }
 
+function deriveSubleaves(seed) {
+  const len = SUBTREE_LEAVES * 32;
+  const prk = hkdf.extract(sha256, seed);
+  const raw = hkdf.expand(sha256, prk, null, len);
+  const hashes = [];
+
+  for (let i = 0; i < len; i += 32)
+    hashes.push(raw.slice(i, i + 32));
+
+  return hashes;
+}
+
 function diffSubtree(key, nonce, seed, subtree) {
   assert(key instanceof AirdropKey);
   assert(Buffer.isBuffer(seed));
   assert(Array.isArray(subtree));
 
-  const hkdf = new HKDF(sha256, seed);
-  const hashes = [];
-
-  while (hashes.length < SUBTREE_LEAVES)
-    hashes.push(hkdf.generate(32));
+  // Derive subtree leaves.
+  const hashes = deriveSubleaves(seed);
 
   // Filter out synthetic hashes.
   // This basically proves that the generation

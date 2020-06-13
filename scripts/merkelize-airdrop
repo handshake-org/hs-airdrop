@@ -14,7 +14,7 @@ const blake2b = require('bcrypto/lib/blake2b');
 const sha256 = require('bcrypto/lib/sha256');
 const merkle = require('bcrypto/lib/mrkl');
 const random = require('bcrypto/lib/random');
-const HKDF = require('bcrypto/lib/hkdf');
+const hkdf = require('bcrypto/lib/hkdf');
 const AirdropKey = require('../lib/key');
 const {PGPMessage, PGPPublicKey} = pgp;
 const {SSHPublicKey} = ssh;
@@ -681,10 +681,16 @@ function padSubtree(hashes, seed) {
   assert(Array.isArray(hashes));
   assert(Buffer.isBuffer(seed));
 
-  const hkdf = new HKDF(sha256, seed);
+  const len = SUBTREE_LEAVES * 32;
+  const prk = hkdf.extract(sha256, seed);
+  const raw = hkdf.expand(sha256, prk, null, len);
 
-  while (hashes.length < SUBTREE_LEAVES)
-    hashes.push(hkdf.generate(32));
+  let i = 0;
+
+  while (hashes.length < SUBTREE_LEAVES) {
+    hashes.push(raw.slice(i, i + 32));
+    i += 32;
+  }
 
   return hashes.sort(compare);
 }
