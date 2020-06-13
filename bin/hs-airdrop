@@ -686,15 +686,19 @@ async function parseArgs() {
     }
   }
 
-  if (options.files.length === 0)
-    throw new Error('Must provide a key file or address. Try hs-airdrop --help.');
+  if (options.files.length === 0) {
+    throw new Error('Must provide a key file or address. '
+                  + 'Try hs-airdrop --help.');
+  }
 
   options.type = getType(options.files[0]);
 
   switch (options.type) {
     case 'pgp': {
-      if (options.files.length < 3)
-        throw new Error('Must provide a keyring file, key ID, and address. Try hs-airdrop --help.');
+      if (options.files.length < 3) {
+        throw new Error('Must provide a keyring file, key ID, and address. '
+                      + 'Try hs-airdrop --help.');
+      }
 
       const [file, id, addr] = options.files;
       const keyID = pgp.decodeID(id);
@@ -706,8 +710,10 @@ async function parseArgs() {
     }
 
     case 'ssh': {
-      if (options.files.length < 2)
-        throw new Error('Must provide a key file and address. Try hs-airdrop --help.');
+      if (options.files.length < 2) {
+        throw new Error('Must provide a key file and address. '
+                      + 'Try hs-airdrop --help.');
+      }
 
       const [file, addr] = options.files;
 
