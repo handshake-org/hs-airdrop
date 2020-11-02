@@ -13,38 +13,34 @@ not necessary to redeem the airdrop.
 `hs-airdrop` is the only tool recommended for airdrop redemption. Use anything
 else at your own risk.
 
-## How it works
+## How It Works
+The Handshake network's airdrop is available through a [merkle tree][tree] that was computed and its root added to the consensus rules of the Handshake blockchain. This allows the owner of a private key to publish a signed merkle proof on-chain in order to redeem their airdrop. If your private key with its [nonce][nonces] is not found by this tool in the merkle tree, you are not eligible to claim HNS coins.
 
-The top ~250,000 users on github have had their SSH keys and PGP added to a
-[merkle tree][tree]. Out of those ~250,000 users, ~175,000 of them had valid
-SSH and PGP keys at the time of tree creation.
+If you are an open source developer that meets any of the requirements listed below you can claim
+__4,246.994314 HNS__ coins from this airdrop:
 
-If you had 15 or more followers on github during the week of __2019-02-04__,
+* The top ~250,000 users on github have had their SSH keys and PGP added to the merkle tree. Out of those ~250,000 users, ~175,000 of them had valid
+SSH and PGP keys at the time of the merkle tree creation who can claim their HNS.
+
+* If you had 15 or more followers on github during the week of __2019-02-04__,
 your github SSH & PGP keys are included in the merkle tree.
 
-Likewise, roughly 30,000 keys from the PGP WOT Strongset have also been
+* Roughly 30,000 keys from the PGP WOT Strongset have also been
 included in the tree.
 
-As a final addition, Hacker News accounts which are linked with Keybase
+* Hacker News accounts which are linked with Keybase
 accounts are included in the tree provided they were ~1.5 years old during the
 crawl.
 
-This merkle tree is computed and its root is added to consensus rules of the
-Handshake blockchain, allowing the owner of a key to publish a signed merkle
-proof on-chain in order to redeem their airdrop.
 
-With the final mainnet key list, every open source developer will receive
-__4,246.994314__ HNS coins from the airdrop.
-
----
-
-There are a few gotchas: we do not allow standard PGP signatures on the
+There are a few gotchas:
+* If you used the HNS faucet at handshake.org, your key was removed from the airdrop and included in [hs-tree-data][tree]. Restore your seedphrase for the address you registered on the website and you should have your HNS coins waiting for you. You can use wallets like [hsd](https://github.com/handshake-org/hsd) or [Bob](https://bobwallet.io) for this.
+* If you met the criteria for a Github aidrop but did not have either a SSH or PGP on your Github account at the time of snapshot/tree creation, you do not have coins allocated to you in the merkle tree.
+* We do not allow standard PGP signatures on the
 consensus layer. This is done for simplicity and safety. This means that a
 regular call to `$ gpg --sign` will not work for handshake airdrop proofs. As
-far as SSH keys go, people typically do not sign arbitrary messages with them.
+far as SSH keys go, people typically do not sign arbitrary messages with them. Because of this, we require a special tool to do both the signing and merkle proof creation.
 
-Because of this, we require a special tool to do both the signing and merkle
-proof creation.
 
 ## Privacy
 
@@ -74,6 +70,8 @@ If you're uncomfortable having third party software access your PGP and SSH
 keys, you are always able to generate this proof on an air-gapped machine. QR
 code generation will be added to this tool for convenience (eventually).
 
+A Handshake airdrop claimer created instructions for you on [how to use Docker as a pseudo-airgap](https://github.com/handshake-org/hs-airdrop/issues/106) when claiming.
+
 ## Fallback for HSMs
 
 Not everyone keeps their SSH and PGP keys on their laptop. In the event that
@@ -99,6 +97,9 @@ This tool also allows for the creation of proofs for faucet recipients and
 sponsors. See the usage below for details.
 
 ## Usage
+If you are unfamiliar with sending blockchain transactions, you can learn what "transactions" are and what "fees" mean on [bitcoin.org](https://developer.bitcoin.org/devguide/transactions.html). The `--fee` argument sends an exact amount of HNS coins (default 0.1 HNS) to the Handshake network to include your claim into the blockchain and receive your 4,246.994314 HNS coins (minus fee amount) to your address.
+
+The passphrase requested during the claiming process is for your SSH/PGP key.
 
 ```
 $ hs-airdrop -h
@@ -153,6 +154,24 @@ $ hs-airdrop -h
 
 Note that if you ran `hs-airdrop` before mainnet, you will need to upgrade to
 the latest version of hs-airdrop and clear the cache (`rm -rf ~/.hs-tree-data`).
+
+You can verify the data being signed will actually be sending you HNS coins to the address you specified by following these [instructions](https://github.com/handshake-org/hs-airdrop/issues/36).
+
+### Debugging
+If you receive an error message similar to this:
+```
+Attempting to create proof.
+This may take a bit.
+Decrypting nonce...
+Downloading: https://github.com/handshake-org/hs-tree-data/raw/master/nonces/111.bin...
+Error: Client network socket disconnected before secure TLS connection was established
+at TLSSocket.onConnectEnd (_tls_wrap.js:1084:19)
+at Object.onceWrapper (events.js:273:13)
+at TLSSocket.emit (events.js:187:15)
+at endReadableNT (_stream_readable.js:1085:12)
+at process._tickCallback (internal/process/next_tick.js:63:19)
+```
+You should download https://github.com/handshake-org/hs-tree-data to your home directory at `~/.hs-tree-data` and re-run your command.
 
 ## License
 
