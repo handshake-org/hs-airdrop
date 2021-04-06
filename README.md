@@ -89,6 +89,10 @@ The full list of keys will be destroyed upon mainnet launch. Plaintext nonces
 are not saved at all during the generation phase. The ephemeral keys used for
 the ECIES key exchanges are also not saved.
 
+_NOTE: since block height 52590 (29 January, 2021) the goosig feature is DISABLED.
+Read the discussion [here](https://github.com/handshake-org/hsd/pull/305).
+If your airdrop key is RSA, you will have to claim with `--bare` (see below)_
+
 ## Security
 
 If you're uncomfortable having third party software access your PGP and SSH
@@ -183,6 +187,12 @@ $ hs-airdrop -h
     $ hs-airdrop ~/.ssh/id_rsa hs1q5z7yyk8xrh4quqg3kw498ngy7hnd4sruqyxnxd -f 0.5 --bare
     $ hs-airdrop hs1q5z7yyk8xrh4quqg3kw498ngy7hnd4sruqyxnxd
 ```
+
+## Update: Since block height 52590 (29 January, 2021) the goosig feature is DISABLED.
+
+Read the discussion [here](https://github.com/handshake-org/hsd/pull/305).
+If your airdrop key is RSA, you **MUST** generate your claim with `--bare`.
+Otherwise, you will get the error [`bad-goosig-disabled`](https://github.com/handshake-org/hs-airdrop/issues/131).
 
 ### Notes
 
