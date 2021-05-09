@@ -66,6 +66,10 @@ creation.
 without a hard fork. If you are not in the airdrop tree, you can not be added
 to it retroactively.
 
+* Airdrop hashes are not "real" transactions and therefore they won't show up on
+transactions explorer. Observe your return address instead, as that will show the
+real transaction containing the airdrop.
+
 
 ## Privacy
 
