@@ -66,6 +66,11 @@ creation.
 without a hard fork. If you are not in the airdrop tree, you can not be added
 to it retroactively.
 
+* Airdrop proofs are not relayed in the same way as normal transactions. Therefore, the hash
+returned by `sendrawairdrop` will not show up on most block explorers like
+a normal transaction hash. To track your airdrop, search for your wallet address instead.
+You will see a payment to your address included in the coinbase transaction of a block.
+
 
 ## Privacy
 
