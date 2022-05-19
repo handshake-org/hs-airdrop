@@ -821,8 +821,6 @@ main(process.argv).catch((err) => {
   if (err.name === 'NonceError') {
     console.error('');
     console.error('This means your key was not found in the airdrop tree.');
-    console.error('If you registered at handshake.org, use that address.');
-    console.error('Usage: $ hs-airdrop [addr]');
   }
 
   process.exit(1);
