@@ -20,7 +20,7 @@ consensus rules of the Handshake protocol. This allows the owner of
 an eligible private key to publish a signed merkle proof on chain in order to
 redeem their airdrop. If your private key is not found by this tool in the
 merkle tree, you are not eligible to claim HNS coins. A blinding factor (or
-[nonce][nonces]) was generated for each recipient to allow recipients to clam
+[nonce][nonces]) was generated for each recipient to allow recipients to claim
 their coins anonymously. For a detailed description of the airdrop tree construction process,
 read [this comment](https://github.com/handshake-org/hs-airdrop/issues/35#issuecomment-586699876).
 
